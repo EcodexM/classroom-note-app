@@ -6,6 +6,7 @@ import 'package:notex/MyNotes/mynotes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:notex/home_page.dart';
 
 class UploadPage extends StatelessWidget {
   final TextEditingController titleController = TextEditingController();
@@ -77,7 +78,7 @@ class UploadPage extends StatelessWidget {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => MyNotesPage()),
+                        MaterialPageRoute(builder: (context) => HomePage()),
                       );
                     },
                     child: Text('OK'),

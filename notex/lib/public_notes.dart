@@ -11,6 +11,7 @@ class PublicNotesPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Public Notes'),
+        centerTitle: true,
         backgroundColor: Colors.deepPurple,
       ),
       body: StreamBuilder<QuerySnapshot>(

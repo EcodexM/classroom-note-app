@@ -1,4 +1,4 @@
-package com.example.notex
+package com.example.notexx
 
 import io.flutter.embedding.android.FlutterActivity
 
