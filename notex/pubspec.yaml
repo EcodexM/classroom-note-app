@@ -25,6 +25,7 @@ dependencies:
   http: ^1.3.0
   share_plus: ^10.1.4
   google_sign_in: ^6.2.1
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -35,6 +36,13 @@ flutter:
   uses-material-design: true
 
   fonts:
+    - family: Boldonse
+      fonts:
+        - asset: fonts/Boldonse-Regular.ttf
+        - asset: fonts/Boldonse-Bold.ttf
+          weight: 700
+        - asset: fonts/Boldonse-Medium.ttf
+          weight: 500
     - family: Poppins
       fonts:
         - asset: assets/fonts/Poppins-Regular.ttf
@@ -45,3 +53,12 @@ flutter:
           weight: 600
         - asset: assets/fonts/Poppins-Bold.ttf
           weight: 700
+    - family: Oswald
+      fonts:
+        - asset: fonts/Oswald-Regular.ttf
+        - asset: fonts/Oswald-Bold.ttf
+          weight: 700
+        - asset: fonts/Oswald-Medium.ttf
+          weight: 500
+        - asset: fonts/Oswald-Light.ttf
+          weight: 300
