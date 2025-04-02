@@ -26,6 +26,10 @@ dependencies:
   google_sign_in: ^6.2.1
   google_fonts: ^6.2.1
   fl_chart: ^0.70.2
+  googleapis: any
+  googleapis_auth: any
+  ntp: ^2.0.0
+  shared_preferences: 2.5.3
 
 dev_dependencies:
   flutter_test:
@@ -34,31 +38,34 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
+  assets:
+    - icons/bell.png
+    - images/arka.png
+    - images/login.jpg
   fonts:
+    - family: Roboto
+      fonts:
+      - asset: fonts/Roboto_Regular.ttf
+      - asset: fonts/Roboto_Bold.ttf
+        weight: 700
     - family: Boldonse
       fonts:
         - asset: fonts/Boldonse-Regular.ttf
-        - asset: fonts/Boldonse-Bold.ttf
-          weight: 700
-        - asset: fonts/Boldonse-Medium.ttf
-          weight: 500
     - family: Poppins
       fonts:
-        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: fonts/Poppins-Regular.ttf
           weight: 400
-        - asset: assets/fonts/Poppins-Medium.ttf
+        - asset: fonts/Poppins-Medium.ttf
           weight: 500
-        - asset: assets/fonts/Poppins-SemiBold.ttf
+        - asset: fonts/Poppins-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/Poppins-Bold.ttf
+        - asset: fonts/Poppins-Bold.ttf
           weight: 700
-    - family: Oswald
+    - family: KoPubBatang
       fonts:
-        - asset: fonts/Oswald-Regular.ttf
-        - asset: fonts/Oswald-Bold.ttf
-          weight: 700
-        - asset: fonts/Oswald-Medium.ttf
-          weight: 500
-        - asset: fonts/Oswald-Light.ttf
-          weight: 300
+        - asset: fonts/KoPubBatang-Regular.ttf
+          weight: 400
+    - family: porterssans
+      fonts:
+        - asset: fonts/porter-sans-inline-block.ttf
+          weight: 400
