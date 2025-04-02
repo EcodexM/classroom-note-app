@@ -1,295 +1,295 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:notex/login.dart';
-import 'package:notex/home_page.dart';
-import 'package:notex/firebase_service.dart';
+// import 'package:flutter/material.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:notex/firebase_service.dart';
+// import 'package:notex/home_page.dart';
+// import 'package:notex/login.dart';
 
-class RegisterPage extends StatefulWidget {
-  @override
-  _RegisterPageState createState() => _RegisterPageState();
-}
+// class RegisterPage extends StatefulWidget {
+//   @override
+//   _RegisterPageState createState() => _RegisterPageState();
+// }
 
-class _RegisterPageState extends State<RegisterPage> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
-  bool isLoading = false;
+// class _RegisterPageState extends State<RegisterPage>
+//     with SingleTickerProviderStateMixin {
+//   final TextEditingController emailController = TextEditingController();
+//   final TextEditingController passwordController = TextEditingController();
+//   final TextEditingController confirmPasswordController =
+//       TextEditingController();
 
-  Future<void> register() async {
-    if (passwordController.text != confirmPasswordController.text) {
-      _showError('Passwords do not match');
-      return;
-    }
+//   bool isLoading = false;
 
-    setState(() => isLoading = true);
+//   late AnimationController _animationController;
+//   late Animation<Offset> _slideAnimation;
+//   late Animation<double> _fadeAnimation;
 
-    try {
-      final userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: emailController.text.trim(),
-            password: passwordController.text.trim(),
-          );
+//   @override
+//   void initState() {
+//     super.initState();
 
-      final user = userCredential.user;
-      if (user != null) {
-        await FirebaseService.addUser(
-          userId: user.uid,
-          email: user.email ?? '',
-          displayName: user.displayName,
-          profileImage: user.photoURL,
-        );
-      }
+//     _animationController = AnimationController(
+//       vsync: this,
+//       duration: Duration(milliseconds: 600),
+//     );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage()),
-      );
-    } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? 'An unknown error occurred');
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
+//     _slideAnimation = Tween<Offset>(
+//       begin: Offset(0.2, 0), // subtle slide like a note
+//       end: Offset.zero,
+//     ).animate(
+//       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+//     );
 
-  Future<void> signUpWithGoogle() async {
-    setState(() => isLoading = true);
+//     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+//       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+//     );
 
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+//     _animationController.forward();
+//   }
 
-      if (googleUser == null) {
-        setState(() => isLoading = false);
-        return; // user canceled
-      }
+//   @override
+//   void dispose() {
+//     _animationController.dispose();
+//     emailController.dispose();
+//     passwordController.dispose();
+//     confirmPasswordController.dispose();
+//     super.dispose();
+//   }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+//   Future<void> register() async {
+//     if (passwordController.text != confirmPasswordController.text) {
+//       _showError('Passwords do not match');
+//       return;
+//     }
 
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+//     setState(() => isLoading = true);
 
-      final userCredential = await FirebaseAuth.instance.signInWithCredential(
-        credential,
-      );
+//     try {
+//       final userCredential = await FirebaseAuth.instance
+//           .createUserWithEmailAndPassword(
+//             email: emailController.text.trim(),
+//             password: passwordController.text.trim(),
+//           );
 
-      final user = userCredential.user;
-      if (user != null) {
-        await FirebaseService.addUser(
-          userId: user.uid,
-          email: user.email ?? '',
-          displayName: user.displayName,
-          profileImage: user.photoURL,
-        );
-      }
+//       final user = userCredential.user;
+//       if (user != null) {
+//         await FirebaseService.addUser(
+//           userId: user.uid,
+//           email: user.email ?? '',
+//           displayName: user.displayName,
+//           profileImage: user.photoURL,
+//         );
+//       }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage()),
-      );
-    } catch (e) {
-      _showError(e.toString());
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
+//       Navigator.pushReplacement(
+//         context,
+//         MaterialPageRoute(builder: (_) => HomePage()),
+//       );
+//     } on FirebaseAuthException catch (e) {
+//       _showError(e.message ?? 'An unknown error occurred');
+//     } finally {
+//       setState(() => isLoading = false);
+//     }
+//   }
 
-  void _showError(String message) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Error'),
-            content: Text(message),
-            actions: [
-              TextButton(
-                child: Text('OK'),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-    );
-  }
+//   void _showError(String message) {
+//     showDialog(
+//       context: context,
+//       builder:
+//           (_) => AlertDialog(
+//             title: Text('Error'),
+//             content: Text(message),
+//             actions: [
+//               TextButton(
+//                 onPressed: () => Navigator.pop(context),
+//                 child: Text('OK'),
+//               ),
+//             ],
+//           ),
+//     );
+//   }
 
-  Widget _buildField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    bool obscure = false,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      style: TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.grey[400]),
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[500]),
-        filled: true,
-        fillColor: Color(0xFF333333),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
+//   Widget _buildTextField({
+//     required String label,
+//     required TextEditingController controller,
+//     bool obscure = false,
+//   }) {
+//     return TextField(
+//       controller: controller,
+//       obscureText: obscure,
+//       style: TextStyle(color: Color(0xFF333333)),
+//       decoration: InputDecoration(
+//         labelText: label,
+//         labelStyle: TextStyle(
+//           color: Color(0xFF6B4EFF),
+//           fontFamily: 'KoPubBatang',
+//         ),
+//         filled: true,
+//         fillColor: Colors.white,
+//         border: OutlineInputBorder(
+//           borderRadius: BorderRadius.circular(10),
+//           borderSide: BorderSide(color: Color(0xFF6B4EFF), width: 2),
+//         ),
+//         focusedBorder: OutlineInputBorder(
+//           borderSide: BorderSide(color: Color(0xFF6B4EFF), width: 2),
+//         ),
+//       ),
+//     );
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFF1E1E1E),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Container(
-            width: 400,
-            padding: EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Color(0xFF2D2D2D),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top Icon
-                Icon(Icons.person_add_alt, size: 48, color: Colors.white),
-                SizedBox(height: 24),
+//   @override
+//   Widget build(BuildContext context) {
+//     final isWide = MediaQuery.of(context).size.width > 800;
 
-                // Title
-                Text(
-                  'Create your NoteX account',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Start sharing and exploring notes with your peers.',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 24),
+//     return Scaffold(
+//       backgroundColor: Color(0xFFF2E9E5),
+//       body: Row(
+//         children: [
+//           Expanded(
+//             flex: 1,
+//             child: SlideTransition(
+//               position: _slideAnimation,
+//               child: FadeTransition(
+//                 opacity: _fadeAnimation,
+//                 child: Center(
+//                   child: SingleChildScrollView(
+//                     padding: EdgeInsets.symmetric(horizontal: 48, vertical: 30),
+//                     child: ConstrainedBox(
+//                       constraints: BoxConstraints(maxWidth: 400),
+//                       child: Column(
+//                         crossAxisAlignment: CrossAxisAlignment.center,
+//                         children: [
+//                           Icon(
+//                             Icons.edit_note,
+//                             size: 40,
+//                             color: Colors.deepOrange,
+//                           ),
+//                           SizedBox(height: 20),
+//                           Text(
+//                             'Create your NoteX account',
+//                             style: TextStyle(
+//                               fontSize: 28,
+//                               fontWeight: FontWeight.bold,
+//                               fontFamily: 'KoPubBatang',
+//                             ),
+//                           ),
+//                           SizedBox(height: 10),
+//                           Text(
+//                             'Start sharing and exploring notes with your peers.',
+//                             style: TextStyle(
+//                               color: Colors.grey[600],
+//                               fontSize: 14,
+//                               fontFamily: 'KoPubBatang',
+//                             ),
+//                             textAlign: TextAlign.center,
+//                           ),
+//                           SizedBox(height: 24),
+//                           _buildTextField(
+//                             label: 'Email',
+//                             controller: emailController,
+//                           ),
+//                           SizedBox(height: 16),
+//                           _buildTextField(
+//                             label: 'Password',
+//                             controller: passwordController,
+//                             obscure: true,
+//                           ),
+//                           SizedBox(height: 16),
+//                           _buildTextField(
+//                             label: 'Confirm Password',
+//                             controller: confirmPasswordController,
+//                             obscure: true,
+//                           ),
+//                           SizedBox(height: 30),
+//                           ElevatedButton(
+//                             onPressed: isLoading ? null : register,
+//                             child:
+//                                 isLoading
+//                                     ? CircularProgressIndicator(
+//                                       color: Colors.white,
+//                                       strokeWidth: 2,
+//                                     )
+//                                     : Text(
+//                                       'Register',
+//                                       style: TextStyle(
+//                                         fontFamily: 'KoPubBatang',
+//                                         fontWeight: FontWeight.w600,
+//                                       ),
+//                                     ),
+//                             style: ElevatedButton.styleFrom(
+//                               backgroundColor: Colors.deepOrange,
+//                               foregroundColor: Colors.white,
+//                               minimumSize: Size(double.infinity, 50),
+//                             ),
+//                           ),
+//                           SizedBox(height: 20),
+//                           GestureDetector(
+//                             onTap: () {
+//                               Navigator.pushReplacement(
+//                                 context,
+//                                 PageRouteBuilder(
+//                                   transitionDuration: Duration(
+//                                     milliseconds: 500,
+//                                   ),
+//                                   transitionsBuilder: (
+//                                     context,
+//                                     animation,
+//                                     _,
+//                                     child,
+//                                   ) {
+//                                     final offset = Tween<Offset>(
+//                                       begin: Offset(-0.2, 0),
+//                                       end: Offset.zero,
+//                                     ).animate(animation);
+//                                     final fade = Tween<double>(
+//                                       begin: 0,
+//                                       end: 1,
+//                                     ).animate(animation);
 
-                // Google button
-                ElevatedButton.icon(
-                  onPressed: isLoading ? null : signUpWithGoogle,
-                  icon: Icon(Icons.login, color: Colors.black87),
-                  label: Text(
-                    'Continue With Google',
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey[400],
-                    disabledForegroundColor: Colors.grey[700],
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    minimumSize: Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 16),
-
-                // OR Divider
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey[700])),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'or sign up with email',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey[700])),
-                  ],
-                ),
-                SizedBox(height: 16),
-
-                _buildField(
-                  controller: emailController,
-                  hint: "Email",
-                  icon: Icons.email,
-                ),
-                SizedBox(height: 16),
-                _buildField(
-                  controller: passwordController,
-                  hint: "Password",
-                  icon: Icons.lock,
-                  obscure: true,
-                ),
-                SizedBox(height: 16),
-                _buildField(
-                  controller: confirmPasswordController,
-                  hint: "Confirm Password",
-                  icon: Icons.lock_outline,
-                  obscure: true,
-                ),
-                SizedBox(height: 24),
-
-                // Register Button
-                ElevatedButton(
-                  onPressed: isLoading ? null : register,
-                  child:
-                      isLoading
-                          ? SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              color: Colors.white,
-                            ),
-                          )
-                          : Text('Register'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                    minimumSize: Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 16),
-
-                GestureDetector(
-                  onTap:
-                      () => Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => LoginPage()),
-                      ),
-                  child: Text(
-                    'Already have an account? Sign in',
-                    style: TextStyle(
-                      color: Colors.deepPurple[300],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+//                                     return SlideTransition(
+//                                       position: offset,
+//                                       child: FadeTransition(
+//                                         opacity: fade,
+//                                         child: child,
+//                                       ),
+//                                     );
+//                                   },
+//                                   pageBuilder: (context, _, __) => LoginPage(),
+//                                 ),
+//                               );
+//                             },
+//                             child: Text(
+//                               'Already have an account? Sign In',
+//                               style: TextStyle(
+//                                 color: Colors.deepPurple,
+//                                 fontWeight: FontWeight.w600,
+//                                 fontFamily: 'KoPubBatang',
+//                               ),
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//             ),
+//           ),
+//           if (isWide)
+//             Expanded(
+//               flex: 1,
+//               child: Container(
+//                 margin: EdgeInsets.all(10),
+//                 decoration: BoxDecoration(
+//                   color: Color(0xFFFBE4DF),
+//                   borderRadius: BorderRadius.circular(30),
+//                   image: DecorationImage(
+//                     image: AssetImage('images/login.jpg'),
+//                     fit: BoxFit.cover,
+//                   ),
+//                 ),
+//               ),
+//             ),
+//         ],
+//       ),
+//     );
+//   }
+// }

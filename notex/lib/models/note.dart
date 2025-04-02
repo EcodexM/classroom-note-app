@@ -12,6 +12,7 @@ class Note {
   final int downloads;
   final double averageRating;
   final List<String> tags;
+  final bool isOffline;
 
   Note({
     required this.id,
@@ -25,6 +26,7 @@ class Note {
     this.downloads = 0,
     this.averageRating = 0.0,
     this.tags = const [],
+    this.isOffline = false,
   });
 
   factory Note.fromFirestore(Map<String, dynamic> data, String id) {

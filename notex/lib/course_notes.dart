@@ -6,6 +6,8 @@ import 'package:notex/MyNotes/addnote.dart' as addnote;
 import 'package:notex/MyNotes/pdfViewer.dart';
 import 'package:notex/models/course.dart';
 import 'package:notex/models/note.dart';
+import 'package:notex/services/offline_service.dart';
+import 'package:intl/intl.dart';
 
 import 'MyNotes/mynote.dart';
 import 'MyNotes/mynote.dart' as addnote;
@@ -111,6 +113,52 @@ class _CourseNotesPageState extends State<CourseNotesPage>
     }).toList();
   }
 
+  Future<void> _makeNoteAvailableOffline(Note note) async {
+    final offlineService = OfflineService();
+    final isAvailable = await offlineService.isNoteAvailableOffline(note.id);
+
+    if (isAvailable) {
+      // Already available offline
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Note already available offline')));
+      return;
+    }
+
+    // Show download progress
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Downloading'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Downloading for offline access...'),
+              ],
+            ),
+          ),
+    );
+
+    final success = await offlineService.saveNoteForOffline(note);
+
+    // Close dialog
+    Navigator.pop(context);
+
+    if (success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Note saved for offline access')));
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to download note')));
+    }
+  }
+
   Future<void> _rateNote(Note note, double rating) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -185,6 +233,9 @@ class _CourseNotesPageState extends State<CourseNotesPage>
                 pdfUrl: note.fileUrl,
                 noteTitle: note.title,
                 isPublic: note.isPublic,
+                noteId: note.id,
+                courseId: widget.courseId,
+                courseCode: widget.courseCode,
               ),
         ),
       );
@@ -267,6 +318,90 @@ class _CourseNotesPageState extends State<CourseNotesPage>
     );
   }
 
+  Future<void> _viewNoteRequests() async {
+    try {
+      final requestsQuery =
+          await FirebaseFirestore.instance
+              .collection('note_requests')
+              .where('courseId', isEqualTo: widget.courseId)
+              .orderBy('createdAt', descending: true)
+              .get();
+
+      List<Map<String, dynamic>> requests = [];
+      for (var doc in requestsQuery.docs) {
+        requests.add({
+          'id': doc.id,
+          'title': doc.data()['title'] ?? 'Untitled',
+          'requestedBy': doc.data()['requestedBy'] ?? 'Unknown',
+          'createdAt': doc.data()['createdAt']?.toDate() ?? DateTime.now(),
+        });
+      }
+
+      if (requests.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No note requests for this course')),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: Text('Note Requests'),
+              content: Container(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: requests.length,
+                  itemBuilder: (context, index) {
+                    final request = requests[index];
+                    return ListTile(
+                      title: Text(request['title']),
+                      subtitle: Text('By: ${request['requestedBy']}'),
+                      trailing: Text(
+                        DateFormat('MM/dd/yy').format(request['createdAt']),
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => addnote.AddNotePage(
+                                  preselectedCourseId: widget.courseId,
+                                  initialTitle: request['title'],
+                                ),
+                          ),
+                        ).then((_) {
+                          _loadNotes();
+                          // Delete the request after fulfilling
+                          FirebaseFirestore.instance
+                              .collection('note_requests')
+                              .doc(request['id'])
+                              .delete();
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Close'),
+                ),
+              ],
+            ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading note requests: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -319,13 +454,20 @@ class _CourseNotesPageState extends State<CourseNotesPage>
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton(
+            onPressed: _viewNoteRequests,
+            backgroundColor: Colors.amber,
+            heroTag: 'viewRequests',
+            child: Icon(Icons.list_alt, color: Colors.white),
+            mini: true,
+          ),
+          SizedBox(height: 8),
+          FloatingActionButton(
             onPressed: _requestNote,
             backgroundColor: Colors.deepPurple,
-            child: Icon(Icons.notification_add, color: Colors.white),
-            tooltip: 'Request a Note',
             heroTag: 'requestNote',
+            child: Icon(Icons.notification_add, color: Colors.white),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 8),
           FloatingActionButton(
             onPressed: () {
               Navigator.push(
@@ -334,13 +476,14 @@ class _CourseNotesPageState extends State<CourseNotesPage>
                   builder:
                       (context) => addnote.AddNotePage(
                         preselectedCourseId: widget.courseId,
+                        initialTitle: null,
                       ),
                 ),
               ).then((_) => _loadNotes());
             },
-            child: Icon(Icons.add),
             backgroundColor: Colors.deepPurple,
             heroTag: 'addNote',
+            child: Icon(Icons.add, color: Colors.white),
           ),
         ],
       ),
@@ -474,9 +617,27 @@ class _CourseNotesPageState extends State<CourseNotesPage>
                 ],
               ],
             ),
-            trailing: IconButton(
-              icon: Icon(Icons.download, color: Colors.deepPurple),
-              onPressed: () => _downloadNote(note),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FutureBuilder<bool>(
+                  future: OfflineService().isNoteAvailableOffline(note.id),
+                  builder: (context, snapshot) {
+                    final isAvailable = snapshot.data ?? false;
+                    return IconButton(
+                      icon: Icon(
+                        isAvailable ? Icons.offline_pin : Icons.offline_bolt,
+                        color: isAvailable ? Colors.green : Colors.grey,
+                      ),
+                      onPressed: () => _makeNoteAvailableOffline(note),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.download, color: Colors.deepPurple),
+                  onPressed: () => _downloadNote(note),
+                ),
+              ],
             ),
             onTap: () => _downloadNote(note),
           ),

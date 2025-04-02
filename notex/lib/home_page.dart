@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:notex/MyNotes/pdfViewer.dart';
-import 'package:notex/models/note.dart';
-import 'package:notex/widgets/notifications.dart';
-import 'package:notex/screens/search_screen.dart';
+import 'package:notex/auth.dart';
 import 'package:notex/course_notes.dart';
-import 'package:notex/screens/course_detail_screen.dart';
-import 'package:notex/login.dart';
-import 'package:notex/widgets/stat_card.dart';
-import 'package:notex/models/course.dart';
 import 'package:notex/MyNotes/mynote.dart';
+// import 'package:notex/screens/shared_notes_screen.dart'; Assuming you have this screen
+import 'package:notex/login.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 
@@ -19,46 +13,22 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage>
-    with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> {
   // State variables
   bool _showNotification = false;
-  List<Course> _userCourses = [];
-  List<Map<String, dynamic>> _notifications = [];
-  int _totalUploads = 0;
-  int _totalDownloads = 0;
-  bool _isLoading = false;
   String _userName = "";
   String _currentTime = "";
   Timer? _timer;
-  bool _showRightDrawer = false;
+  int _selectedTab = 0;
 
-  // Animation controller - initialize as nullable
-  AnimationController? _animationController;
-  Animation<double>? _animation;
+  // Constants for the safe margin area - this defines the content boundary
+  final double horizontalMargin = 60.0;
+  final double topMargin = 40.0;
+  final double bottomMargin = 40.0;
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize animation controller
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    // Create animation
-    _animation = CurvedAnimation(
-      parent: _animationController!,
-      curve: Curves.easeOutBack,
-    );
-
-    // Start animation
-    _animationController!.forward();
-
-    _loadUserCourses();
-    _loadUserStats();
-    _loadNotifications();
     _loadUserName();
     _updateTime();
 
@@ -69,147 +39,8 @@ class _HomePageState extends State<HomePage>
   }
 
   @override
-  Future<void> _downloadNote(Note note) async {
-    try {
-      // First show download options dialog
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text(
-              'Download Options',
-              style: TextStyle(
-                fontFamily: 'Oswald',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Choose download format:',
-                  style: TextStyle(fontFamily: 'Oswald'),
-                ),
-                SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // PDF Option
-                    ElevatedButton.icon(
-                      icon: Icon(Icons.picture_as_pdf),
-                      label: Text('PDF'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context, 'pdf');
-                      },
-                    ),
-                    // Word Option
-                    ElevatedButton.icon(
-                      icon: Icon(Icons.description),
-                      label: Text('Word'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context, 'word');
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          );
-        },
-      ).then((format) async {
-        if (format != null) {
-          final currentUser = FirebaseAuth.instance.currentUser;
-          if (currentUser == null) return;
-
-          // Get the file reference from Firebase Storage
-          String fileUrl = note.fileUrl;
-          String fileFormat = format; // 'pdf' or 'word'
-
-          // If format conversion is needed (e.g., from PDF to Word or vice versa)
-          // Here we would implement the conversion logic or API call
-          // For now, we'll just handle the download tracking
-
-          // Increment downloads counter in Firestore
-          await FirebaseFirestore.instance
-              .collection('notes')
-              .doc(note.id)
-              .update({'downloads': FieldValue.increment(1)});
-
-          // Track download in a separate collection
-          await FirebaseFirestore.instance.collection('downloads').add({
-            'userEmail': currentUser.email,
-            'noteId': note.id,
-            'downloadedAt': FieldValue.serverTimestamp(),
-            'format': fileFormat,
-          });
-
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Downloading ${note.title} as ${fileFormat.toUpperCase()}',
-              ),
-            ),
-          );
-
-          // Either open the file or download it
-          // For mobile: Open in viewer
-          // For web: Trigger download
-          if (fileFormat == 'pdf') {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (context) =>
-                        PDFViewerPage(pdfUrl: fileUrl, noteTitle: note.title),
-              ),
-            );
-          } else {
-            // Launch download for Word document or handle conversion
-            // This would connect to a server-side function or API to convert and return the file
-            // For now we'll just show a message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Word document download initiated')),
-            );
-          }
-        }
-      });
-    } catch (error) {
-      print('Error handling download: $error');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error downloading file: $error')));
-    }
-  }
-
   void dispose() {
     _timer?.cancel();
-    _animationController?.dispose();
     super.dispose();
   }
 
@@ -223,106 +54,11 @@ class _HomePageState extends State<HomePage>
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       setState(() {
-        // Get the actual name from Google account
-        _userName = currentUser.displayName ?? currentUser.email ?? "";
+        _userName =
+            currentUser.displayName ??
+            currentUser.email?.split('@')[0] ??
+            "USER";
       });
-    }
-  }
-
-  Future<void> _loadUserCourses() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
-      final enrollmentsQuery =
-          await FirebaseFirestore.instance
-              .collection('course_enrollments')
-              .where('studentEmail', isEqualTo: currentUser.email)
-              .get();
-
-      final enrolledCourseIds =
-          enrollmentsQuery.docs
-              .map((doc) => doc.data()['courseId'] as String)
-              .toList();
-
-      List<Course> courses = [];
-      for (var courseId in enrolledCourseIds) {
-        final courseDoc =
-            await FirebaseFirestore.instance
-                .collection('courses')
-                .doc(courseId)
-                .get();
-
-        if (courseDoc.exists) {
-          courses.add(Course.fromFirestore(courseDoc.data()!, courseDoc.id));
-        }
-      }
-
-      setState(() {
-        _userCourses = courses;
-        _isLoading = false;
-      });
-    } catch (error) {
-      print('Error loading courses: $error');
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading courses: $error')));
-    }
-  }
-
-  Future<void> _loadUserStats() async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
-      final uploadsQuery =
-          await FirebaseFirestore.instance
-              .collection('notes')
-              .where('ownerEmail', isEqualTo: currentUser.email)
-              .get();
-
-      final downloadsQuery =
-          await FirebaseFirestore.instance
-              .collection('downloads')
-              .where('userEmail', isEqualTo: currentUser.email)
-              .get();
-
-      setState(() {
-        _totalUploads = uploadsQuery.docs.length;
-        _totalDownloads = downloadsQuery.docs.length;
-      });
-    } catch (error) {
-      print('Error loading user stats: $error');
-    }
-  }
-
-  Future<void> _loadNotifications() async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
-      final notificationsQuery =
-          await FirebaseFirestore.instance
-              .collection('notifications')
-              .where('userEmail', isEqualTo: currentUser.email)
-              .orderBy('createdAt', descending: true)
-              .get();
-
-      setState(() {
-        _notifications =
-            notificationsQuery.docs
-                .map((doc) => {'id': doc.id, ...doc.data()})
-                .toList();
-      });
-    } catch (error) {
-      print('Error loading notifications: $error');
     }
   }
 
@@ -332,63 +68,142 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-  void _toggleRightDrawer() {
-    setState(() {
-      _showRightDrawer = !_showRightDrawer;
-    });
-  }
-
   void _handleSignOut() async {
     await FirebaseAuth.instance.signOut();
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => LoginPage()),
+      MaterialPageRoute(builder: (context) => AuthPage()),
       (Route<dynamic> route) => false,
     );
   }
 
-  void _navigateToCourses() {
-    // Already on courses page
-  }
-
-  void _navigateToNotes() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => MyNotesPage()),
-    );
-  }
-
-  void _navigateToSharedNotes() {
+  void _refreshPage() {
+    // Implement your refresh logic here
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('Shared Notes feature coming soon')));
+    ).showSnackBar(SnackBar(content: Text('Refreshing...')));
+
+    // Re-fetch user data or other necessary information
+    _loadUserName();
+    _updateTime();
+  }
+
+  void _navigateToPage(int index) {
+    setState(() {
+      _selectedTab = index;
+    });
+
+    switch (index) {
+      case 1:
+        // Navigate to Courses
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => CoursesPage()),
+        );
+        break;
+      case 2:
+        // Navigate to Notes
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => MyNotesPage()),
+        );
+        break;
+      case 3:
+        // Navigate to Shared with me
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => SharedNotesScreen()),
+        );
+        break;
+    }
+  }
+
+  // Helper method to determine screen size
+  bool _isSmallScreen(BuildContext context) {
+    return MediaQuery.of(context).size.width < 800;
+  }
+
+  bool _isMediumScreen(BuildContext context) {
+    return MediaQuery.of(context).size.width >= 800 &&
+        MediaQuery.of(context).size.width < 1200;
+  }
+
+  bool _isLargeScreen(BuildContext context) {
+    return MediaQuery.of(context).size.width >= 1200;
+  }
+
+  // Helper method for responsive text sizes
+  double _getResponsiveTextSize(BuildContext context, double baseSize) {
+    if (_isLargeScreen(context)) {
+      return baseSize;
+    } else if (_isMediumScreen(context)) {
+      return baseSize * 0.7;
+    } else {
+      return baseSize * 0.5;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Check if animation is initialized
-    if (_animation == null || _animationController == null) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = _isSmallScreen(context);
+    final isMediumScreen = _isMediumScreen(context);
 
-    return AnimatedBuilder(
-      animation: _animation!,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, (1 - _animation!.value) * -100),
-          child: Opacity(
-            opacity: _animation!.value,
-            child: Scaffold(
-              backgroundColor: Colors.white,
-              appBar: PreferredSize(
-                preferredSize: Size.fromHeight(80),
-                child: Container(
-                  padding: EdgeInsets.only(top: 30, bottom: 20),
+    // Define the content area (respecting margins)
+    final contentWidth = screenWidth - (horizontalMargin * 2);
+    final contentHeight = screenHeight - topMargin - bottomMargin;
+
+    return Scaffold(
+      backgroundColor: Color(0xFFF2E9E5), // Lavender background
+      body: Stack(
+        children: [
+          // This container is for illustration purposes - it will be positioned outside the safe margins
+          // Top-right illustration space
+          Positioned(
+            top: 20,
+            right: 20,
+            child: Container(
+              width: 120,
+              height: 120,
+              // You can add your illustrations here later
+              // Example: child: Image.asset('assets/top_right_illustration.png'),
+            ),
+          ),
+
+          // Bottom-left illustration space
+          Positioned(
+            bottom: 20,
+            left: 20,
+            child: Container(
+              width: 120,
+              height: 120,
+              // You can add your illustrations here later
+              // Example: child: Image.asset('assets/bottom_left_illustration.png'),
+            ),
+          ),
+
+          // The main content container - this is where all your main content should stay
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalMargin,
+              topMargin,
+              horizontalMargin,
+              bottomMargin,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with navigation - always stays within margins
+                Container(
+                  height: isSmallScreen ? 60 : 80,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 12 : 24,
+                    vertical: isSmallScreen ? 8 : 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(16),
-                      bottomRight: Radius.circular(16),
-                    ),
+                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
@@ -398,670 +213,268 @@ class _HomePageState extends State<HomePage>
                     ],
                   ),
                   child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 100.0),
-                      child: Row(
-                        children: [
-                          // Logo
-                          Container(
-                            height: 36,
-                            width: 36,
+                    child: Row(
+                      children: [
+                        // App logo / refresh button
+                        InkWell(
+                          onTap: _refreshPage,
+                          child: Container(
+                            height: isSmallScreen ? 30 : 50,
+                            width: isSmallScreen ? 30 : 50,
                             decoration: BoxDecoration(
-                              color: Colors.deepPurple,
+                              color: Color(0xFFFFC085),
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.deepPurple.withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              Icons.menu_book,
-                              color: Colors.white,
-                              size: 20,
                             ),
                           ),
-                          SizedBox(width: 24),
-                          // Courses button
-                          TextButton(
-                            onPressed: _navigateToCourses,
-                            child: Text(
-                              'Courses',
-                              style: TextStyle(
-                                fontFamily: 'Oswald',
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 24),
-                          // Notes button
-                          TextButton(
-                            onPressed: _navigateToNotes,
-                            child: Text(
-                              'Notes',
-                              style: TextStyle(
-                                fontFamily: 'Oswald',
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 24),
-                          // Shared with me button
-                          TextButton(
-                            onPressed: _navigateToSharedNotes,
-                            child: Text(
-                              'Shared with me',
-                              style: TextStyle(
-                                fontFamily: 'Oswald',
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Spacer(),
+                        ),
 
-                          // Time display in rounded rectangle
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.grey.shade300),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              _currentTime,
-                              style: TextStyle(
-                                fontFamily: 'Oswald',
-                                color: Colors.black87,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
+                        // App name - hide on small screens
+                        if (screenWidth > 900)
+                          Text(
+                            ' NOTEX',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 18 : 24,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF333333),
+                              fontFamily: 'porterssans',
                             ),
                           ),
 
-                          SizedBox(width: 16),
-
-                          // Notification Bell in circular container
-                          Stack(
-                            children: [
-                              Container(
-                                height: 36,
-                                width: 36,
-                                decoration: BoxDecoration(
-                                  color: Colors.orange,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.orange.withOpacity(0.3),
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2),
+                        // Navigation Tabs - Scrollable on small screens or wrap
+                        Expanded(
+                          child:
+                              isSmallScreen
+                                  ? SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        _buildNavButton("Courses", 1),
+                                        SizedBox(width: 7),
+                                        _buildNavButton("Notes", 2),
+                                        SizedBox(width: 7),
+                                        _buildNavButton("Shared With Me", 3),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: IconButton(
-                                  padding: EdgeInsets.zero,
-                                  icon: Icon(
-                                    Icons.notifications,
-                                    color: Colors.white,
-                                    size: 20,
+                                  )
+                                  : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _buildNavButton("Courses", 1),
+                                      SizedBox(width: 18),
+                                      _buildNavButton("Notes", 2),
+                                      SizedBox(width: 18),
+                                      _buildNavButton("Shared With Me", 3),
+                                    ],
                                   ),
-                                  onPressed: _toggleNotifications,
-                                ),
-                              ),
-                              if (_notifications.isNotEmpty)
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    padding: EdgeInsets.all(2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    constraints: BoxConstraints(
-                                      minWidth: 14,
-                                      minHeight: 14,
-                                    ),
-                                    child: Text(
-                                      '${_notifications.length}',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontFamily: 'Oswald',
+                        ),
+
+                        // Clock - hide on small screens
+                        if (screenWidth > 750)
+                          Text(
+                            _currentTime,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 14 : 18,
+                              color: Color(0xFF333333),
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Oswald',
+                            ),
+                          ),
+
+                        SizedBox(width: isSmallScreen ? 8 : 16),
+
+                        // Profile Avatar - always visible but smaller on small screens
+                        GestureDetector(
+                          onTap: _handleSignOut,
+                          child: Container(
+                            width: isSmallScreen ? 24 : 30,
+                            height: isSmallScreen ? 24 : 30,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey.shade200,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child:
+                                currentUser?.photoURL != null
+                                    ? Image.network(
+                                      currentUser!.photoURL!,
+                                      fit: BoxFit.cover,
+                                    )
+                                    : Center(
+                                      child: Text(
+                                        _userName.isNotEmpty
+                                            ? _userName[0].toUpperCase()
+                                            : "U",
+                                        style: TextStyle(
+                                          color: Color(0xFF333333),
+                                          fontWeight: FontWeight.bold,
+                                          fontFamily: 'Oswald',
+                                          fontSize: isSmallScreen ? 10 : 12,
+                                        ),
                                       ),
-                                      textAlign: TextAlign.center,
                                     ),
-                                  ),
-                                ),
-                            ],
                           ),
-
-                          SizedBox(width: 16),
-
-                          // User Account Button - square with rounded corners
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius: BorderRadius.circular(6),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: InkWell(
-                              onTap: _toggleRightDrawer,
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                child: Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              body: Stack(
-                children: [
-                  // Main Content Area - Left and Right sections
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 100.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Left section
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(height: 32),
-                                // User greeting
-                                Text(
-                                  'Hello!',
-                                  style: TextStyle(
-                                    fontFamily: 'Oswald',
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  'I\'m $_userName',
-                                  style: TextStyle(
-                                    fontFamily: 'Oswald',
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(height: 32),
 
-                                // My Courses Container
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.orange,
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.orange.withOpacity(0.1),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  width: double.infinity,
-                                  padding: EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'My Courses',
-                                        style: TextStyle(
-                                          fontFamily: 'Oswald',
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      SizedBox(height: 16),
-
-                                      // Course List
-                                      _isLoading
-                                          ? Center(
-                                            child: CircularProgressIndicator(),
-                                          )
-                                          : _userCourses.isEmpty
-                                          ? Center(
-                                            child: Text(
-                                              'No courses yet',
-                                              style: TextStyle(
-                                                fontFamily: 'Oswald',
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                          )
-                                          : ListView.builder(
-                                            shrinkWrap: true,
-                                            physics:
-                                                NeverScrollableScrollPhysics(),
-                                            itemCount: _userCourses.length,
-                                            itemBuilder: (context, index) {
-                                              final course =
-                                                  _userCourses[index];
-                                              return Card(
-                                                margin: EdgeInsets.only(
-                                                  bottom: 8,
-                                                ),
-                                                color: Colors.grey[100],
-                                                elevation: 0,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: ListTile(
-                                                  title: Text(
-                                                    course.code,
-                                                    style: TextStyle(
-                                                      fontFamily: 'Oswald',
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                  subtitle: Text(
-                                                    course.name,
-                                                    style: TextStyle(
-                                                      fontFamily: 'Oswald',
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                  trailing: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.note,
-                                                        size: 16,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Text(
-                                                        '${course.noteCount} notes',
-                                                        style: TextStyle(
-                                                          fontFamily: 'Oswald',
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  onTap: () {
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder:
-                                                            (
-                                                              context,
-                                                            ) => CourseDetailScreen(
-                                                              courseId:
-                                                                  course.id,
-                                                              courseCode:
-                                                                  course.code,
-                                                              courseName:
-                                                                  course.name,
-                                                              color:
-                                                                  course.color,
-                                                            ),
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                // Main greeting section
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 40),
+                        // Profile image - responsive size
+                        Container(
+                          margin: EdgeInsets.only(
+                            bottom: isSmallScreen ? 20 : 40,
+                          ),
+                          width: isSmallScreen ? 120 : 180,
+                          height: isSmallScreen ? 120 : 180,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(),
+                            image: DecorationImage(
+                              image: AssetImage('images/arka.png'),
+                              fit: BoxFit.cover,
                             ),
                           ),
-                          SizedBox(width: 32),
-                          // Right section
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(height: 32),
-                                Container(
-                                  padding: EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.deepPurple,
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.deepPurple.withOpacity(
-                                          0.1,
-                                        ),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'NoteX: Your platform',
-                                        style: TextStyle(
-                                          fontFamily: 'Oswald',
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Text(
-                                        'for seamless note',
-                                        style: TextStyle(
-                                          fontFamily: 'Oswald',
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Text(
-                                        'sharing and collaboration.',
-                                        style: TextStyle(
-                                          fontFamily: 'Oswald',
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                        ),
+
+                        // Greeting text - responsive font sizes
+                        Text(
+                          'HELLO,',
+                          style: TextStyle(
+                            fontSize: _getResponsiveTextSize(context, 80),
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF2E2E2E),
+                            fontFamily: 'KoPubBatang',
+                            shadows: [
+                              Shadow(
+                                color: Color(0xFFFFC085).withOpacity(0.1),
+                                offset: Offset(2, 2),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        ShaderMask(
+                          shaderCallback:
+                              (bounds) => LinearGradient(
+                                colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
+                              ).createShader(
+                                Rect.fromLTWH(
+                                  0,
+                                  0,
+                                  bounds.width,
+                                  bounds.height,
                                 ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Making education easier through collaborative study resources',
-                                  style: TextStyle(
-                                    fontFamily: 'Oswald',
-                                    color: Colors.grey[600],
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                SizedBox(height: 24),
-                              ],
+                              ),
+                          child: Text(
+                            'ARKA',
+                            style: TextStyle(
+                              fontSize: _getResponsiveTextSize(context, 120),
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0096C7),
+                              fontFamily: 'KoPubBatang',
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        Text(
+                          'All your notes\nin one place.',
+                          style: TextStyle(
+                            fontSize: _getResponsiveTextSize(context, 75),
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF6D6D6D),
+                            fontFamily: 'KoPubBatang',
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-
-                  // Notifications Popup
-                  if (_showNotification)
-                    Positioned(
-                      top: 80,
-                      right: 100,
-                      child: Material(
-                        elevation: 8,
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          width: 300,
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Notifications',
-                                    style: TextStyle(
-                                      fontFamily: 'Oswald',
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.close, size: 18),
-                                    onPressed: _toggleNotifications,
-                                    padding: EdgeInsets.zero,
-                                    constraints: BoxConstraints(),
-                                  ),
-                                ],
-                              ),
-                              Divider(),
-                              _notifications.isEmpty
-                                  ? Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Text(
-                                      'No new notifications',
-                                      style: TextStyle(fontFamily: 'Oswald'),
-                                    ),
-                                  )
-                                  : Container(
-                                    constraints: BoxConstraints(maxHeight: 300),
-                                    child: ListView.separated(
-                                      shrinkWrap: true,
-                                      itemCount: _notifications.length,
-                                      separatorBuilder:
-                                          (context, index) => Divider(),
-                                      itemBuilder: (context, index) {
-                                        final notification =
-                                            _notifications[index];
-                                        return ListTile(
-                                          title: Text(
-                                            notification['title'] ??
-                                                'New Notification',
-                                            style: TextStyle(
-                                              fontFamily: 'Oswald',
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            notification['message'] ?? '',
-                                            style: TextStyle(
-                                              fontFamily: 'Oswald',
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          contentPadding: EdgeInsets.zero,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Right Navigation Drawer
-                  if (_showRightDrawer)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: 300,
-                      child: Material(
-                        elevation: 16,
-                        child: SafeArea(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(16),
-                                bottomLeft: Radius.circular(16),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  blurRadius: 10,
-                                  offset: Offset(-3, 0),
-                                ),
-                              ],
-                            ),
-                            child: Stack(
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Account',
-                                            style: TextStyle(
-                                              fontFamily: 'Oswald',
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          IconButton(
-                                            icon: Icon(Icons.close),
-                                            onPressed: _toggleRightDrawer,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Divider(),
-                                    ListTile(
-                                      leading: Icon(
-                                        Icons.person,
-                                        color: Colors.deepPurple,
-                                      ),
-                                      title: Text(
-                                        'Profile',
-                                        style: TextStyle(fontFamily: 'Oswald'),
-                                      ),
-                                      onTap: () {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Profile page coming soon',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    ListTile(
-                                      leading: Icon(
-                                        Icons.settings,
-                                        color: Colors.deepPurple,
-                                      ),
-                                      title: Text(
-                                        'Settings',
-                                        style: TextStyle(fontFamily: 'Oswald'),
-                                      ),
-                                      onTap: () {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Settings page coming soon',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                // Sign Out at bottom
-                                Positioned(
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 16,
-                                  child: Column(
-                                    children: [
-                                      Divider(),
-                                      ListTile(
-                                        leading: Icon(
-                                          Icons.logout,
-                                          color: Colors.red,
-                                        ),
-                                        title: Text(
-                                          'Sign Out',
-                                          style: TextStyle(
-                                            fontFamily: 'Oswald',
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                        onTap: _handleSignOut,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Overlay when drawer is open
-                  if (_showRightDrawer || _showNotification)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onTap: () {
-                          if (_showRightDrawer) _toggleRightDrawer();
-                          if (_showNotification) _toggleNotifications();
-                        },
-                        child: Container(color: Colors.black.withOpacity(0.4)),
-                      ),
-                    ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  // Helper method to build navigation buttons
+  Widget _buildNavButton(String title, int index) {
+    final isSelected = _selectedTab == index;
+    final isSmallScreen = _isSmallScreen(context);
+
+    return InkWell(
+      onTap: () => _navigateToPage(index),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 16 : 24,
+          vertical: 12,
+        ),
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? Color(0xFFFFC085).withOpacity(0.3)
+                  : Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: isSelected ? Color(0xFFFF8C42) : Colors.transparent,
+            width: 1,
+          ),
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: Color(0xFFFFC085).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                  : [],
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: isSmallScreen ? 15 : 18,
+            color:
+                isSelected
+                    ? Color.fromARGB(255, 46, 44, 56)
+                    : Color(0xFF333333),
+            fontFamily: 'KoPubBatang',
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            letterSpacing: 0.1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// You will need to create these navigation target pages if they don't exist
+class CoursesPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Courses')),
+      body: Center(child: Text('Courses page')),
+    );
+  }
+}
+
+class SharedNotesScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Shared With Me')),
+      body: Center(child: Text('Shared notes page')),
     );
   }
 }

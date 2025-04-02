@@ -7,15 +7,16 @@ import 'dart:io';
 
 class AddNotePage extends StatefulWidget {
   final String? preselectedCourseId;
+  final String? initialTitle;
 
-  AddNotePage({this.preselectedCourseId});
+  AddNotePage({this.preselectedCourseId, this.initialTitle});
 
   @override
   _AddNotePageState createState() => _AddNotePageState();
 }
 
 class _AddNotePageState extends State<AddNotePage> {
-  final TextEditingController _titleController = TextEditingController();
+  TextEditingController _titleController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   bool _isPublic = true;
@@ -32,6 +33,9 @@ class _AddNotePageState extends State<AddNotePage> {
   void initState() {
     super.initState();
     _selectedCourseId = widget.preselectedCourseId;
+    if (widget.initialTitle != null) {
+      _titleController.text = widget.initialTitle!;
+    }
     _loadCourses();
   }
 
@@ -192,7 +196,7 @@ class _AddNotePageState extends State<AddNotePage> {
           await FirebaseFirestore.instance.collection('notifications').add({
             'userEmail': requestedBy,
             'message':
-                'The note "${_titleController.text.trim()}" for course ${widget.preselectedCourseId} is now available!',
+                'The note "${_titleController.text.trim()}" for your requested course is now available!',
             'createdAt': FieldValue.serverTimestamp(),
           });
 

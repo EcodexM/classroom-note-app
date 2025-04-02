@@ -1,0 +1,126 @@
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:notex/models/user_role.dart';
+import 'package:http/http.dart' as http;
+
+class AuthService {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // 🔑 Replace with your actual Firebase Web API Key
+  final String _firebaseApiKey = 'AIzaSyBNbnXxAiGWpB7Dfz3kKbTGL2E1eto7T-I';
+
+  /// Sign in with Google via REST (for Windows desktop)
+  Future<UserCredential?> signInWithGoogleAccessToken(
+    String accessToken,
+  ) async {
+    final url = Uri.parse(
+      'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=$_firebaseApiKey',
+    );
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'postBody': 'access_token=$accessToken&providerId=google.com',
+        'requestUri': 'http://localhost',
+        'returnSecureToken': true,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final idToken = data['idToken'];
+
+      final credential = GoogleAuthProvider.credential(
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      // Check and store user info in Firestore if new
+      await _initializeUser(userCredential.user);
+
+      return userCredential;
+    } else {
+      print('Google sign-in failed: ${response.body}');
+      return null;
+    }
+  }
+
+  /// Ensure user document exists with a default role
+  Future<void> _initializeUser(User? user) async {
+    if (user == null) return;
+
+    final docRef = _firestore.collection('users').doc(user.uid);
+    final docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      await docRef.set({
+        'email': user.email,
+        'name': user.displayName ?? '',
+        'role': 'student', // default role
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  /// Check if current user is admin
+  Future<bool> isCurrentUserAdmin() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return false;
+
+    final userDoc =
+        await _firestore.collection('users').doc(currentUser.uid).get();
+
+    if (!userDoc.exists) return false;
+
+    final String roleStr = userDoc.data()?['role'] ?? 'student';
+    return roleStr == 'admin';
+  }
+
+  /// Check if current user is teacher
+  Future<bool> isCurrentUserTeacher() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return false;
+
+    final userDoc =
+        await _firestore.collection('users').doc(currentUser.uid).get();
+
+    if (!userDoc.exists) return false;
+
+    final String roleStr = userDoc.data()?['role'] ?? 'student';
+    return roleStr == 'teacher';
+  }
+
+  /// Get current user role
+  Future<UserRole> getCurrentUserRole() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return UserRole.student;
+
+    final userDoc =
+        await _firestore.collection('users').doc(currentUser.uid).get();
+
+    if (!userDoc.exists) return UserRole.student;
+
+    final String roleStr = userDoc.data()?['role'] ?? 'student';
+
+    switch (roleStr) {
+      case 'admin':
+        return UserRole.admin;
+      case 'teacher':
+        return UserRole.teacher;
+      default:
+        return UserRole.student;
+    }
+  }
+
+  /// Set user role manually (admin use)
+  Future<void> setUserRole(String userId, UserRole role) async {
+    await _firestore.collection('users').doc(userId).update({
+      'role': role.name.toLowerCase(),
+    });
+  }
+}

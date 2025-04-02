@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:notex/login.dart';
+import 'package:notex/screens/offline_notes_screen.dart';
 
 class AppDrawer extends StatefulWidget {
   final Function(int) onTabSwitch;
@@ -144,6 +145,17 @@ class _AppDrawerState extends State<AppDrawer> {
             leading: Icon(Icons.logout, color: Colors.red),
             title: Text('Logout', style: TextStyle(color: Colors.red)),
             onTap: () => _handleLogout(context),
+          ),
+          ListTile(
+            leading: Icon(Icons.offline_bolt, color: Colors.deepPurple),
+            title: Text('Offline Notes'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => OfflineNotesScreen()),
+              );
+            },
           ),
         ],
       ),
