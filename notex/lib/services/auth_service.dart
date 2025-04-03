@@ -3,15 +3,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:notex/models/user_role.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Add this for environment variable management
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 🔑 Replace with your actual Firebase Web API Key
-  final String _firebaseApiKey = 'AIzaSyBNbnXxAiGWpB7Dfz3kKbTGL2E1eto7T-I';
+  // Use environment variable to store the Firebase API key
+  final String _firebaseApiKey = dotenv.env['FIREBASE_API_KEY'] ?? '';
 
-  /// Sign in with Google via REST (for Windows desktop)
+  /// Sign in with Google via REST (for platforms like Windows desktop)
   Future<UserCredential?> signInWithGoogleAccessToken(
     String accessToken,
   ) async {
@@ -39,10 +40,7 @@ class AuthService {
       );
 
       final userCredential = await _auth.signInWithCredential(credential);
-
-      // Check and store user info in Firestore if new
       await _initializeUser(userCredential.user);
-
       return userCredential;
     } else {
       print('Google sign-in failed: ${response.body}');
@@ -69,30 +67,22 @@ class AuthService {
 
   /// Check if current user is admin
   Future<bool> isCurrentUserAdmin() async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) return false;
-
-    final userDoc =
-        await _firestore.collection('users').doc(currentUser.uid).get();
-
-    if (!userDoc.exists) return false;
-
-    final String roleStr = userDoc.data()?['role'] ?? 'student';
-    return roleStr == 'admin';
+    return _isCurrentUserRole('admin');
   }
 
   /// Check if current user is teacher
   Future<bool> isCurrentUserTeacher() async {
+    return _isCurrentUserRole('teacher');
+  }
+
+  /// Generic role check
+  Future<bool> _isCurrentUserRole(String role) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return false;
 
     final userDoc =
         await _firestore.collection('users').doc(currentUser.uid).get();
-
-    if (!userDoc.exists) return false;
-
-    final String roleStr = userDoc.data()?['role'] ?? 'student';
-    return roleStr == 'teacher';
+    return userDoc.exists && userDoc.data()?['role'] == role;
   }
 
   /// Get current user role
@@ -102,25 +92,19 @@ class AuthService {
 
     final userDoc =
         await _firestore.collection('users').doc(currentUser.uid).get();
-
     if (!userDoc.exists) return UserRole.student;
 
     final String roleStr = userDoc.data()?['role'] ?? 'student';
-
-    switch (roleStr) {
-      case 'admin':
-        return UserRole.admin;
-      case 'teacher':
-        return UserRole.teacher;
-      default:
-        return UserRole.student;
-    }
+    return UserRole.values.firstWhere(
+      (r) => r.toString().split('.').last == roleStr,
+      orElse: () => UserRole.student,
+    );
   }
 
   /// Set user role manually (admin use)
   Future<void> setUserRole(String userId, UserRole role) async {
     await _firestore.collection('users').doc(userId).update({
-      'role': role.name.toLowerCase(),
+      'role': role.toString().split('.').last,
     });
   }
 }

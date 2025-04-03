@@ -8,6 +8,8 @@ class AppHeader extends StatefulWidget {
   final Function(int) onTabSelected;
   final VoidCallback? onSignOut;
   final VoidCallback? onProfileMenuTap;
+  final bool showBackButton;
+  final int pageIndex;
 
   const AppHeader({
     Key? key,
@@ -15,7 +17,8 @@ class AppHeader extends StatefulWidget {
     required this.onTabSelected,
     this.onSignOut,
     this.onProfileMenuTap,
-    required int pageIndex,
+    this.showBackButton = false,
+    required this.pageIndex,
   }) : super(key: key);
 
   @override
@@ -30,7 +33,6 @@ class _AppHeaderState extends State<AppHeader> {
   void initState() {
     super.initState();
     _updateTime();
-
     _timer = Timer.periodic(const Duration(seconds: 60), (timer) {
       _updateTime();
     });
@@ -52,7 +54,7 @@ class _AppHeaderState extends State<AppHeader> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isSmallScreen = screenWidth < 600;
-    final bool isHomePage = widget.selectedIndex == 0;
+    final bool isHomePage = widget.pageIndex == 0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -70,10 +72,13 @@ class _AppHeaderState extends State<AppHeader> {
       ),
       child: Row(
         children: [
-          if (!isHomePage)
+          // Custom back button: Display only on Notes, Shared With Me, and Courses screens
+          if (widget.showBackButton && !isHomePage)
             IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
               onPressed: () => Navigator.of(context).maybePop(),
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints(minWidth: 30, minHeight: 30),
             ),
 
           // App icon
@@ -104,7 +109,7 @@ class _AppHeaderState extends State<AppHeader> {
 
           const Spacer(),
 
-          // Navigation Tabs
+          // Navigation Tabs - use a Row with SingleChildScrollView for smaller screens
           if (!isSmallScreen && !isHomePage)
             Flexible(
               child: Row(
@@ -112,8 +117,22 @@ class _AppHeaderState extends State<AppHeader> {
                 children: [
                   _buildTabItem("Courses", 1),
                   _buildTabItem("Notes", 2),
-                  _buildTabItem("Shared with Me", 3),
+                  _buildTabItem("Shared With Me", 3),
                 ],
+              ),
+            )
+          else if (isSmallScreen && !isHomePage)
+            Flexible(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildTabItem("Courses", 1),
+                    _buildTabItem("Notes", 2),
+                    _buildTabItem("Shared With Me", 3),
+                  ],
+                ),
               ),
             ),
 
@@ -135,7 +154,7 @@ class _AppHeaderState extends State<AppHeader> {
 
           // Profile Icon
           GestureDetector(
-            onTap: widget.onProfileMenuTap,
+            onTap: widget.onProfileMenuTap ?? widget.onSignOut,
             child: Container(
               width: 36,
               height: 36,

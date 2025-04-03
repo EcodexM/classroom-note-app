@@ -5,6 +5,7 @@ import 'package:notex/models/course.dart';
 import 'package:notex/models/note.dart';
 import 'package:notex/screens/course_detail_screen.dart';
 import 'package:notex/MyNotes/pdfViewer.dart';
+import 'package:notex/widgets/header.dart';
 
 class SearchScreen extends StatefulWidget {
   @override
@@ -127,321 +128,363 @@ class _SearchScreenState extends State<SearchScreen>
     }
   }
 
+  // Function to handle tab selection in the header
+  void _handleTabSelection(int index) {
+    // Navigate based on index
+    switch (index) {
+      case 0: // Home
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+      case 1: // Courses
+        Navigator.pushReplacementNamed(context, '/courses');
+        break;
+      case 2: // Notes
+        Navigator.pushReplacementNamed(context, '/notes');
+        break;
+      case 3: // Shared With Me
+        Navigator.pushReplacementNamed(context, '/shared');
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Search', style: TextStyle(fontFamily: 'Poppins')),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search courses or notes...',
-                prefixIcon: Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    _performSearch('');
-                  },
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
-              ),
-              onSubmitted: _performSearch,
+      backgroundColor: Color(0xFFF2E9E5), // Consistent background color
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Use the existing header with consistent positioning
+            AppHeader(
+              selectedIndex: 2, // Search is under Notes tab
+              pageIndex: 2, // Current page index
+              onTabSelected: _handleTabSelection,
+              onSignOut: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.pushReplacementNamed(context, '/');
+              },
+              showBackButton: true, // Show back button in search screen
             ),
+
+            // Search input with consistent margins and styling
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search courses or notes...',
+                  prefixIcon: Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.clear),
+                    onPressed: () {
+                      _searchController.clear();
+                      _performSearch('');
+                    },
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onSubmitted: _performSearch,
+              ),
+            ),
+
+            // Tab bar with consistent styling
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                labelColor: Colors.deepPurple,
+                unselectedLabelColor: Colors.grey[600],
+                indicatorColor: Colors.deepPurple,
+                tabs: [
+                  Tab(icon: Icon(Icons.school), text: 'Courses'),
+                  Tab(icon: Icon(Icons.note), text: 'Notes'),
+                ],
+              ),
+            ),
+
+            // Tab content with proper scrolling and margins
+            Expanded(
+              child:
+                  _isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : Container(
+                        margin: EdgeInsets.all(24),
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            // Courses tab
+                            _searchQuery.isEmpty
+                                ? _buildEmptySearch('courses')
+                                : _courseResults.isEmpty
+                                ? _buildNoResults('courses')
+                                : _buildCourseResults(),
+
+                            // Notes tab
+                            _searchQuery.isEmpty
+                                ? _buildEmptySearch('notes')
+                                : _noteResults.isEmpty
+                                ? _buildNoResults('notes')
+                                : _buildNoteResults(),
+                          ],
+                        ),
+                      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCourseResults() {
+    return ListView.builder(
+      itemCount: _courseResults.length,
+      padding: EdgeInsets.zero, // Use container margins instead
+      itemBuilder: (context, index) {
+        final course = _courseResults[index];
+        final color = Color(int.parse(course['color'].replaceAll('#', '0xFF')));
+
+        return Card(
+          margin: EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          TabBar(
-            controller: _tabController,
-            labelColor: Colors.deepPurple,
-            unselectedLabelColor: Colors.grey[600],
-            indicatorColor: Colors.deepPurple,
-            tabs: [
-              Tab(icon: Icon(Icons.school), text: 'Courses'),
-              Tab(icon: Icon(Icons.note), text: 'Notes'),
-            ],
-          ),
-          Expanded(
-            child:
-                _isLoading
-                    ? Center(child: CircularProgressIndicator())
-                    : TabBarView(
-                      controller: _tabController,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => CourseDetailScreen(
+                        courseId: course['id'],
+                        courseCode: course['code'],
+                        courseName: course['name'],
+                        color: course['color'],
+                      ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        course['code'].substring(
+                          0,
+                          Math.min(2, course['code'].length),
+                        ),
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Courses tab
-                        _searchQuery.isEmpty
-                            ? _buildEmptySearch('courses')
-                            : _courseResults.isEmpty
-                            ? _buildNoResults('courses')
-                            : ListView.builder(
-                              itemCount: _courseResults.length,
-                              padding: EdgeInsets.all(16),
-                              itemBuilder: (context, index) {
-                                final course = _courseResults[index];
-                                final color = Color(
-                                  int.parse(
-                                    course['color'].replaceAll('#', '0xFF'),
-                                  ),
-                                );
-
-                                return Card(
-                                  margin: EdgeInsets.only(bottom: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: InkWell(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => CourseDetailScreen(
-                                                courseId: course['id'],
-                                                courseCode: course['code'],
-                                                courseName: course['name'],
-                                                color: course['color'],
-                                              ),
-                                        ),
-                                      );
-                                    },
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: color.withOpacity(0.2),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                course['code'].substring(0, 2),
-                                                style: TextStyle(
-                                                  color: color,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                  fontFamily: 'Poppins',
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  course['code'],
-                                                  style: TextStyle(
-                                                    color: color,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontFamily: 'Poppins',
-                                                  ),
-                                                ),
-                                                Text(
-                                                  course['name'],
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                    fontFamily: 'Poppins',
-                                                  ),
-                                                ),
-                                                if (course['department']
-                                                    .isNotEmpty) ...[
-                                                  SizedBox(height: 4),
-                                                  Text(
-                                                    course['department'],
-                                                    style: TextStyle(
-                                                      color: Colors.grey[600],
-                                                      fontSize: 12,
-                                                      fontFamily: 'Poppins',
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ),
-                                          Text(
-                                            '${course['noteCount']} notes',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
-                                              fontFamily: 'Poppins',
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
+                        Text(
+                          course['code'],
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Poppins',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          course['name'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontFamily: 'Poppins',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (course['department'].isNotEmpty) ...[
+                          SizedBox(height: 4),
+                          Text(
+                            course['department'],
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                              fontFamily: 'Poppins',
                             ),
-
-                        // Notes tab
-                        _searchQuery.isEmpty
-                            ? _buildEmptySearch('notes')
-                            : _noteResults.isEmpty
-                            ? _buildNoResults('notes')
-                            : ListView.builder(
-                              itemCount: _noteResults.length,
-                              padding: EdgeInsets.all(16),
-                              itemBuilder: (context, index) {
-                                final note = _noteResults[index];
-                                final date = note['uploadDate'];
-
-                                return Card(
-                                  margin: EdgeInsets.only(bottom: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: InkWell(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => PDFViewerPage(
-                                                pdfUrl: note['fileUrl'],
-                                                noteTitle: note['title'],
-                                              ),
-                                        ),
-                                      );
-                                    },
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  note['title'],
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                    fontFamily: 'Poppins',
-                                                  ),
-                                                ),
-                                              ),
-                                              Text(
-                                                '${date.day}/${date.month}/${date.year}',
-                                                style: TextStyle(
-                                                  color: Colors.grey[600],
-                                                  fontSize: 12,
-                                                  fontFamily: 'Poppins',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            '${note['courseCode']} - ${note['courseName']}',
-                                            style: TextStyle(
-                                              color: Colors.deepPurple,
-                                              fontFamily: 'Poppins',
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            'By: ${note['ownerEmail']}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontFamily: 'Poppins',
-                                            ),
-                                          ),
-                                          SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.star,
-                                                size: 16,
-                                                color: Colors.amber,
-                                              ),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                (note['averageRating']
-                                                        as double)
-                                                    .toStringAsFixed(1),
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontFamily: 'Poppins',
-                                                ),
-                                              ),
-                                              SizedBox(width: 16),
-                                              Icon(
-                                                Icons.download,
-                                                size: 16,
-                                                color: Colors.grey[600],
-                                              ),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                '${note['downloads']}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontFamily: 'Poppins',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          if (note['tags'].isNotEmpty) ...[
-                                            SizedBox(height: 8),
-                                            Wrap(
-                                              spacing: 4,
-                                              children:
-                                                  (note['tags'] as List<String>).map((
-                                                    tag,
-                                                  ) {
-                                                    return Chip(
-                                                      label: Text(
-                                                        tag,
-                                                        style: TextStyle(
-                                                          fontSize: 10,
-                                                          fontFamily: 'Poppins',
-                                                        ),
-                                                      ),
-                                                      materialTapTargetSize:
-                                                          MaterialTapTargetSize
-                                                              .shrinkWrap,
-                                                      padding: EdgeInsets.zero,
-                                                      labelPadding:
-                                                          EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 0,
-                                                          ),
-                                                      backgroundColor:
-                                                          Colors.grey[200],
-                                                    );
-                                                  }).toList(),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ],
                     ),
+                  ),
+                  Text(
+                    '${course['noteCount']} notes',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNoteResults() {
+    return ListView.builder(
+      itemCount: _noteResults.length,
+      padding: EdgeInsets.zero, // Use container margins instead
+      itemBuilder: (context, index) {
+        final note = _noteResults[index];
+        final date = note['uploadDate'];
+
+        return Card(
+          margin: EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => PDFViewerPage(
+                        pdfUrl: note['fileUrl'],
+                        noteTitle: note['title'],
+                      ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          note['title'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontFamily: 'Poppins',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${date.day}/${date.month}/${date.year}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '${note['courseCode']} - ${note['courseName']}',
+                    style: TextStyle(
+                      color: Colors.deepPurple,
+                      fontFamily: 'Poppins',
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'By: ${note['ownerEmail']}',
+                    style: TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.star, size: 16, color: Colors.amber),
+                      SizedBox(width: 4),
+                      Text(
+                        (note['averageRating'] as double).toStringAsFixed(1),
+                        style: TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+                      ),
+                      SizedBox(width: 16),
+                      Icon(Icons.download, size: 16, color: Colors.grey[600]),
+                      SizedBox(width: 4),
+                      Text(
+                        '${note['downloads']}',
+                        style: TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+                      ),
+                    ],
+                  ),
+                  if (note['tags'].isNotEmpty) ...[
+                    SizedBox(height: 8),
+                    Container(
+                      height: 28, // Fixed height to prevent overflow
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: (note['tags'] as List<String>).length,
+                        itemBuilder: (context, tagIndex) {
+                          final tag = (note['tags'] as List<String>)[tagIndex];
+                          return Container(
+                            margin: EdgeInsets.only(right: 4),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              tag,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -488,4 +531,9 @@ class _SearchScreenState extends State<SearchScreen>
       ),
     );
   }
+}
+
+// Helper class for min function
+class Math {
+  static int min(int a, int b) => a < b ? a : b;
 }

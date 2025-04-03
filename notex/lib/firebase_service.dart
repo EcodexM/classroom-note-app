@@ -11,11 +11,32 @@ class FirebaseService {
     required String email,
     String? displayName,
     String? profileImage,
+    String role = 'student',
   }) async {
+    final docRef = _db.collection('users').doc(userId);
+    final docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      await docRef.set({
+        'email': email,
+        'displayName': displayName ?? email.split('@')[0],
+        'profileImage': profileImage ?? '',
+        'role': role,
+        'enrollmentDate': FieldValue.serverTimestamp(),
+      });
+    } else if (!docSnap.data()!.containsKey('role')) {
+      await docRef.update({'role': role});
+    }
+
+    final String username =
+        displayName != null && displayName.isNotEmpty
+            ? displayName
+            : email.split('@').first;
+
     await _db.collection('users').doc(userId).set({
       'email': email,
-      'displayName': displayName,
+      'displayName': username,
       'profileImage': profileImage,
+      'role': role,
       'enrollmentDate': FieldValue.serverTimestamp(),
     });
   }
@@ -80,6 +101,17 @@ class FirebaseService {
       'tags': tags,
       'searchTerms': searchTerms,
     });
+  }
+
+  static Future<String?> getUserRole(String userId) async {
+    DocumentSnapshot userDoc = await _db.collection('users').doc(userId).get();
+    if (userDoc.exists && userDoc.data() != null) {
+      final data = userDoc.data() as Map<String, dynamic>?;
+      if (data != null && data.containsKey('role')) {
+        return data['role'];
+      }
+    }
+    return null; // Or handle as unauthenticated or unauthorized
   }
 
   /// Add Ratings subcollection under Note

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:notex/admin/admin_dashboard_home.dart';
 import 'package:notex/firebase_service.dart';
 import 'package:notex/home_page.dart';
+import 'package:notex/services/auth_service.dart';
+import 'package:notex/admin/admin_dashboard_home.dart'; // Import your admin dashboard page
 
 class AuthPage extends StatefulWidget {
   @override
@@ -74,7 +77,7 @@ class _AuthPageState extends State<AuthPage>
     if (isLogin) {
       login();
     } else {
-      register();
+      register(isAdminLogin ? 'admin' : 'student');
     }
   }
 
@@ -118,29 +121,12 @@ class _AuthPageState extends State<AuthPage>
         await FirebaseService.addUser(
           userId: user.uid,
           email: user.email ?? '',
-          displayName: user.displayName,
+          displayName: user.email?.split('@').first,
           profileImage: user.photoURL,
+          role: 'student',
         );
       }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage()),
-      );
-    } catch (e) {
-      print(e);
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
-
-  Future<void> login() async {
-    setState(() => isLoading = true);
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => HomePage()),
@@ -152,7 +138,54 @@ class _AuthPageState extends State<AuthPage>
     }
   }
 
-  Future<void> register() async {
+  Future<void> login() async {
+    setState(() => isLoading = true);
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+      final user = userCredential.user;
+
+      if (user != null) {
+        // Retrieve the user's role from Firestore to determine the correct dashboard
+        String? userRole = await FirebaseService.getUserRole(
+          user.uid,
+        ); // Ensure this method is correctly implemented in FirebaseService
+
+        if (isAdminLogin && userRole == 'admin') {
+          // Redirect to the Admin Dashboard if the user is an admin and is logging in from the admin page
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => AdminDashboardHome()),
+          );
+        } else if (!isAdminLogin && userRole == 'student') {
+          // Redirect to the Student Dashboard if the user is a student and is logging from the student page
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HomePage(),
+            ), // Ensure you have a StudentDashboard page
+          );
+        } else {
+          // If the role doesn't match the login type or the role is undefined, show an error
+          FirebaseAuth.instance
+              .signOut(); // Optionally sign out the user to force a re-login
+          _showError(
+            "Access Denied: You are not authorized to access this section.",
+          );
+        }
+      }
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> register(String role) async {
+    // Added role parameter to specify the user's role at registration
     if (passwordController.text != confirmPasswordController.text) {
       _showError('Passwords do not match');
       return;
@@ -169,18 +202,34 @@ class _AuthPageState extends State<AuthPage>
 
       final user = userCredential.user;
       if (user != null) {
+        // Assign role during registration
         await FirebaseService.addUser(
           userId: user.uid,
           email: user.email ?? '',
           displayName: user.displayName,
           profileImage: user.photoURL,
+          role: role, // Pass the role to the addUser function
         );
-      }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage()),
-      );
+        // Redirect users to the appropriate dashboard based on the role
+        if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AdminDashboardHome(),
+            ), // Redirect to the Admin Dashboard
+          );
+        } else if (role == 'student') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HomePage(),
+            ), // Redirect to the Student Dashboard
+          );
+        } else {
+          _showError("Invalid role specified. Registration failed.");
+        }
+      }
     } on FirebaseAuthException catch (e) {
       _showError(e.message ?? 'An unknown error occurred');
     } finally {
@@ -192,12 +241,12 @@ class _AuthPageState extends State<AuthPage>
     showDialog(
       context: context,
       builder:
-          (_) => AlertDialog(
+          (ctx) => AlertDialog(
             title: Text('Error'),
             content: Text(message),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(ctx),
                 child: Text('OK'),
               ),
             ],
@@ -642,7 +691,10 @@ class _AuthPageState extends State<AuthPage>
         SizedBox(height: 30),
         ElevatedButton(
           focusNode: _loginButtonFocusNode,
-          onPressed: isLoading ? null : register,
+          onPressed:
+              isLoading
+                  ? null
+                  : () => register(isAdminLogin ? 'admin' : 'student'),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromARGB(255, 70, 70, 70),
             foregroundColor: Colors.white,

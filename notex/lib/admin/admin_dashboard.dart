@@ -7,8 +7,6 @@ import 'package:notex/admin/user_management.dart';
 import 'package:notex/admin/content_moderation.dart';
 import 'package:notex/admin/institution_management.dart';
 import 'package:notex/auth.dart';
-import 'package:notex/login.dart';
-import 'package:notex/login.dart';
 import 'package:notex/services/auth_service.dart';
 
 class AdminDashboard extends StatefulWidget {

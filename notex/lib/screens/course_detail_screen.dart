@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:notex/MyNotes/pdfViewer.dart';
 import 'package:notex/course_notes.dart';
 import 'package:notex/models/course.dart';
+import 'package:notex/widgets/header.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final String courseId;
@@ -201,6 +202,27 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     }
   }
 
+  // Handler for tab selection in the header
+  void _handleTabSelection(int index) {
+    // Navigate based on index
+    if (index != 1) {
+      // Not the current tab (courses)
+      Navigator.pop(context); // First go back to avoid stacking
+
+      switch (index) {
+        case 0: // Home
+          Navigator.pushReplacementNamed(context, '/home');
+          break;
+        case 2: // Notes
+          Navigator.pushReplacementNamed(context, '/notes');
+          break;
+        case 3: // Shared with me
+          Navigator.pushReplacementNamed(context, '/shared');
+          break;
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color courseColor = Color(
@@ -208,275 +230,384 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.courseCode, style: TextStyle(fontFamily: 'Poppins')),
-        backgroundColor: courseColor,
-      ),
-      body:
-          _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : Column(
-                children: [
-                  // Course header
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    color: courseColor.withOpacity(0.1),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.courseName,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Instructor: $_instructor',
-                          style: TextStyle(fontSize: 16, fontFamily: 'Poppins'),
-                        ),
-                        SizedBox(height: 16),
-                        Row(
+      backgroundColor: Color(0xFFF2E9E5), // Consistent background color
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Use the existing AppHeader with consistent positioning
+            AppHeader(
+              selectedIndex: 1, // Courses tab is selected
+              pageIndex: 1, // Current page index
+              onTabSelected: _handleTabSelection,
+              onSignOut: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.pushReplacementNamed(context, '/');
+              },
+              showBackButton: true, // Show back button for detail screens
+            ),
+
+            // Main content with proper padding to avoid overflow
+            Expanded(
+              child:
+                  _isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : SingleChildScrollView(
+                        child: Column(
                           children: [
-                            _infoChip(Icons.note, '$_noteCount Notes'),
-                            SizedBox(width: 16),
-                            _infoChip(Icons.people, '$_studentCount Students'),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _toggleEnrollment,
-                            child: Text(
-                              _isEnrolled ? 'Unenroll' : 'Enroll in Course',
-                              style: TextStyle(fontFamily: 'Poppins'),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  _isEnrolled ? Colors.red : courseColor,
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Tab bar
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: courseColor,
-                    unselectedLabelColor: Colors.grey[600],
-                    indicatorColor: courseColor,
-                    tabs: [
-                      Tab(
-                        icon: Icon(Icons.announcement),
-                        text: 'Announcements',
-                      ),
-                      Tab(icon: Icon(Icons.description), text: 'Recent Notes'),
-                    ],
-                  ),
-
-                  // Tab content
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        // Announcements tab
-                        _announcements.isEmpty
-                            ? Center(
-                              child: Text(
-                                'No announcements yet',
-                                style: TextStyle(fontFamily: 'Poppins'),
-                              ),
-                            )
-                            : ListView.builder(
-                              itemCount: _announcements.length,
+                            // Course header with consistent margins
+                            Container(
+                              margin: EdgeInsets.fromLTRB(24, 0, 24, 16),
                               padding: EdgeInsets.all(16),
-                              itemBuilder: (context, index) {
-                                final announcement = _announcements[index];
-                                final date = announcement['timestamp'];
-
-                                return Card(
-                                  margin: EdgeInsets.only(bottom: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.announcement,
-                                              color: courseColor,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                announcement['title'],
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                  fontFamily: 'Poppins',
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          announcement['message'],
-                                          style: TextStyle(
-                                            fontFamily: 'Poppins',
-                                          ),
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          '${date.day}/${date.month}/${date.year}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                            fontFamily: 'Poppins',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-
-                        // Recent notes tab
-                        _recentNotes.isEmpty
-                            ? Center(
+                              decoration: BoxDecoration(
+                                color: courseColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                               child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'No notes available yet',
-                                    style: TextStyle(fontFamily: 'Poppins'),
+                                    widget.courseName,
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                    // Handle text overflow
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Instructor: $_instructor',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   SizedBox(height: 16),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => CourseNotesPage(
-                                                courseId: widget.courseId,
-                                                courseName: widget.courseName,
-                                                courseCode: widget.courseCode,
-                                              ),
+                                  Row(
+                                    children: [
+                                      _infoChip(
+                                        Icons.note,
+                                        '$_noteCount Notes',
+                                      ),
+                                      SizedBox(width: 16),
+                                      _infoChip(
+                                        Icons.people,
+                                        '$_studentCount Students',
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _toggleEnrollment,
+                                      child: Text(
+                                        _isEnrolled
+                                            ? 'Unenroll'
+                                            : 'Enroll in Course',
+                                        style: TextStyle(fontFamily: 'Poppins'),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            _isEnrolled
+                                                ? Colors.red
+                                                : courseColor,
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 12,
                                         ),
-                                      );
-                                    },
-                                    child: Text('View All Notes'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: courseColor,
-                                      foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            )
-                            : ListView.builder(
-                              itemCount:
-                                  _recentNotes.length +
-                                  1, // +1 for "View all" button
-                              padding: EdgeInsets.all(16),
-                              itemBuilder: (context, index) {
-                                if (index == _recentNotes.length) {
-                                  return Center(
-                                    child: TextButton(
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (context) => CourseNotesPage(
-                                                  courseId: widget.courseId,
-                                                  courseName: widget.courseName,
-                                                  courseCode: widget.courseCode,
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                      child: Text(
-                                        'View All Notes',
-                                        style: TextStyle(
-                                          color: courseColor,
-                                          fontWeight: FontWeight.bold,
-                                          fontFamily: 'Poppins',
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                final note = _recentNotes[index];
-                                final date = note['uploadDate'];
-
-                                return Card(
-                                  margin: EdgeInsets.only(bottom: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: ListTile(
-                                    title: Text(
-                                      note['title'],
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      'By: ${note['ownerEmail']} • ${date.day}/${date.month}/${date.year}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    ),
-                                    trailing: Text(
-                                      '${note['downloads']} downloads',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => PDFViewerPage(
-                                                pdfUrl: note['fileUrl'],
-                                                noteTitle: note['title'],
-                                              ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
                             ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+
+                            // Tab bar with consistent styling and margins
+                            Container(
+                              height: 50,
+                              margin: EdgeInsets.symmetric(horizontal: 24),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(25),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: TabBar(
+                                controller: _tabController,
+                                labelColor: courseColor,
+                                unselectedLabelColor: Colors.grey[600],
+                                indicatorColor: courseColor,
+                                indicatorSize: TabBarIndicatorSize.label,
+                                tabs: [
+                                  Tab(text: 'Announcements'),
+                                  Tab(text: 'Recent Notes'),
+                                ],
+                              ),
+                            ),
+
+                            SizedBox(height: 16),
+
+                            // Tab content with consistent margins
+                            Container(
+                              height:
+                                  MediaQuery.of(context).size.height *
+                                  0.45, // Fixed height to prevent overflow
+                              margin: EdgeInsets.symmetric(horizontal: 24),
+                              child: TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  // Announcements tab
+                                  _announcements.isEmpty
+                                      ? Center(
+                                        child: Text(
+                                          'No announcements yet',
+                                          style: TextStyle(
+                                            fontFamily: 'Poppins',
+                                          ),
+                                        ),
+                                      )
+                                      : ListView.builder(
+                                        itemCount: _announcements.length,
+                                        padding:
+                                            EdgeInsets
+                                                .zero, // Use container margin instead
+                                        itemBuilder: (context, index) {
+                                          final announcement =
+                                              _announcements[index];
+                                          final date =
+                                              announcement['timestamp'];
+
+                                          return Card(
+                                            margin: EdgeInsets.only(bottom: 16),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(
+                                                16.0,
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.announcement,
+                                                        color: courseColor,
+                                                      ),
+                                                      SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: Text(
+                                                          announcement['title'],
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 18,
+                                                            fontFamily:
+                                                                'Poppins',
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  SizedBox(height: 8),
+                                                  Text(
+                                                    announcement['message'],
+                                                    style: TextStyle(
+                                                      fontFamily: 'Poppins',
+                                                    ),
+                                                    maxLines: 3,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  SizedBox(height: 8),
+                                                  Text(
+                                                    '${date.day}/${date.month}/${date.year}',
+                                                    style: TextStyle(
+                                                      color: Colors.grey[600],
+                                                      fontSize: 12,
+                                                      fontFamily: 'Poppins',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+
+                                  // Recent notes tab
+                                  _recentNotes.isEmpty
+                                      ? Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'No notes available yet',
+                                              style: TextStyle(
+                                                fontFamily: 'Poppins',
+                                              ),
+                                            ),
+                                            SizedBox(height: 16),
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (
+                                                          context,
+                                                        ) => CourseNotesPage(
+                                                          courseId:
+                                                              widget.courseId,
+                                                          courseName:
+                                                              widget.courseName,
+                                                          courseCode:
+                                                              widget.courseCode,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                              child: Text('View All Notes'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: courseColor,
+                                                foregroundColor: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                      : ListView.builder(
+                                        itemCount:
+                                            _recentNotes.length +
+                                            1, // +1 for "View all" button
+                                        padding:
+                                            EdgeInsets
+                                                .zero, // Use container margin instead
+                                        itemBuilder: (context, index) {
+                                          if (index == _recentNotes.length) {
+                                            return Center(
+                                              child: TextButton(
+                                                onPressed: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder:
+                                                          (
+                                                            context,
+                                                          ) => CourseNotesPage(
+                                                            courseId:
+                                                                widget.courseId,
+                                                            courseName:
+                                                                widget
+                                                                    .courseName,
+                                                            courseCode:
+                                                                widget
+                                                                    .courseCode,
+                                                          ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Text(
+                                                  'View All Notes',
+                                                  style: TextStyle(
+                                                    color: courseColor,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontFamily: 'Poppins',
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+
+                                          final note = _recentNotes[index];
+                                          final date = note['uploadDate'];
+
+                                          return Card(
+                                            margin: EdgeInsets.only(bottom: 8),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: ListTile(
+                                              title: Text(
+                                                note['title'],
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontFamily: 'Poppins',
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              subtitle: Text(
+                                                'By: ${note['ownerEmail']} • ${date.day}/${date.month}/${date.year}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontFamily: 'Poppins',
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              trailing: Text(
+                                                '${note['downloads']} downloads',
+                                                style: TextStyle(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 12,
+                                                  fontFamily: 'Poppins',
+                                                ),
+                                              ),
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (
+                                                          context,
+                                                        ) => PDFViewerPage(
+                                                          pdfUrl:
+                                                              note['fileUrl'],
+                                                          noteTitle:
+                                                              note['title'],
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+            ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
