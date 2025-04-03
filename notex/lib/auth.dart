@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:notex/admin/admin_dashboard_home.dart';
 import 'package:notex/firebase_service.dart';
 import 'package:notex/home_page.dart';
-import 'package:notex/services/auth_service.dart';
-import 'package:notex/admin/admin_dashboard_home.dart'; // Import your admin dashboard page
+import 'package:notex/services/auth_service.dart'; // Import your admin dashboard page
 
 class AuthPage extends StatefulWidget {
   @override
@@ -158,7 +156,7 @@ class _AuthPageState extends State<AuthPage>
           // Redirect to the Admin Dashboard if the user is an admin and is logging in from the admin page
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => AdminDashboardHome()),
+            MaterialPageRoute(builder: (_) => HomePage()),
           );
         } else if (!isAdminLogin && userRole == 'student') {
           // Redirect to the Student Dashboard if the user is a student and is logging from the student page
@@ -216,7 +214,7 @@ class _AuthPageState extends State<AuthPage>
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => AdminDashboardHome(),
+              builder: (_) => HomePage(),
             ), // Redirect to the Admin Dashboard
           );
         } else if (role == 'student') {

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:notex/screens/peer_review_screen.dart';
-import 'package:notex/widgets/rating_summary_widget.dart';
 import 'dart:io';
 
 class PDFViewerPage extends StatefulWidget {
