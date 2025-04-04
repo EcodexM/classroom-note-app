@@ -43,6 +43,7 @@ flutter:
     - icons/bell.png
     - images/arka.png
     - images/login.jpg
+    - images/right-arrow.png
   fonts:
     - family: Roboto
       fonts:

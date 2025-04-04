@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 class AppHeader extends StatefulWidget {
   final int selectedIndex;
@@ -29,6 +30,7 @@ class _AppHeaderState extends State<AppHeader> {
   String _currentTime = "";
   Timer? _timer;
   bool _hasNotifications = true;
+  int _hoveredIndex = -1;
 
   @override
   void initState() {
@@ -56,7 +58,6 @@ class _AppHeaderState extends State<AppHeader> {
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isSmallScreen = screenWidth < 550;
     final bool isLargeScreen = screenWidth >= 900;
-    final bool isHomePage = widget.pageIndex == 0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 50, vertical: 40),
@@ -74,11 +75,9 @@ class _AppHeaderState extends State<AppHeader> {
       ),
       child: Row(
         children: [
-          // App icon and name in a row
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // App icon
               Container(
                 width: 44,
                 height: 44,
@@ -88,8 +87,6 @@ class _AppHeaderState extends State<AppHeader> {
                 ),
                 child: const Icon(Icons.menu_book_rounded, color: Colors.white),
               ),
-
-              // App name - Hide on smaller screens
               if (!isSmallScreen)
                 const Padding(
                   padding: EdgeInsets.only(left: 8),
@@ -105,8 +102,6 @@ class _AppHeaderState extends State<AppHeader> {
                 ),
             ],
           ),
-
-          // Expanded container for centered navigation tabs
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -122,20 +117,15 @@ class _AppHeaderState extends State<AppHeader> {
               ),
             ),
           ),
-
-          // Right-side elements in a row
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Notification bell icon
               Stack(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.notifications_none_outlined),
-                    onPressed: () {
-                      // Show notifications panel
-                    },
-                    constraints: BoxConstraints(maxWidth: 40),
+                    onPressed: () {},
+                    constraints: const BoxConstraints(maxWidth: 40),
                     padding: EdgeInsets.zero,
                   ),
                   if (_hasNotifications)
@@ -153,7 +143,6 @@ class _AppHeaderState extends State<AppHeader> {
                     ),
                 ],
               ),
-
               if (isLargeScreen)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -166,7 +155,6 @@ class _AppHeaderState extends State<AppHeader> {
                     ),
                   ),
                 ),
-
               GestureDetector(
                 onTap: widget.onProfileMenuTap ?? widget.onSignOut,
                 child: Container(
@@ -203,33 +191,61 @@ class _AppHeaderState extends State<AppHeader> {
 
   Widget _buildTabItem(String title, int index) {
     final bool isSelected = widget.selectedIndex == index;
+    final bool isHovered = _hoveredIndex == index;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isSmallScreen = screenWidth < 550;
 
     final String displayText =
-        title == "Shared With Me" && MediaQuery.of(context).size.width < 550
-            ? "Shared"
-            : title;
+        title == "Shared With Me" && isSmallScreen ? "Shared" : title;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: InkWell(
-        onTap: () => widget.onTabSelected(index),
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          decoration:
-              isSelected
-                  ? BoxDecoration(
-                    color: const Color(0xFFFFF1E6),
-                    borderRadius: BorderRadius.circular(24),
-                  )
-                  : null,
-          child: Text(
-            displayText,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              color: isSelected ? const Color(0xFFFF8C42) : Colors.black87,
-              fontFamily: 'KoPubBatang',
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hoveredIndex = index),
+        onExit: (_) => setState(() => _hoveredIndex = -1),
+        child: InkWell(
+          onTap: () => widget.onTabSelected(index),
+          borderRadius: BorderRadius.circular(24),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color:
+                  (!isSmallScreen && (isSelected || isHovered))
+                      ? const Color(0xFFE97451)
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow:
+                  (!isSmallScreen && (isSelected || isHovered))
+                      ? [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ]
+                      : [],
+            ),
+            transform:
+                (!isSmallScreen && (isSelected || isHovered))
+                    ? (Matrix4.identity()..scale(1.05))
+                    : Matrix4.identity(),
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight:
+                    (isSelected || isHovered)
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                color:
+                    (!isSmallScreen && (isSelected || isHovered))
+                        ? Colors.white
+                        : Colors.black87,
+                fontFamily: 'KoPubBatang',
+              ),
+              child: Text(displayText),
             ),
           ),
         ),

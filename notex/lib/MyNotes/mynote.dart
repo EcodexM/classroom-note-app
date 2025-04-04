@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,7 @@ import 'package:notex/services/offline_service.dart';
 import 'package:notex/widgets/header.dart'; // Import the modified AppHeader
 import 'package:notex/models/note.dart';
 import 'package:intl/intl.dart';
+import 'package:notex/services/keyboard_util.dart'; // Import your keyboard utility
 
 class MyNotesPage extends StatefulWidget {
   const MyNotesPage({Key? key}) : super(key: key);
@@ -280,189 +282,195 @@ class _MyNotesPageState extends State<MyNotesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFF2E9E5), // Consistent background color
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Use the consistent AppHeader
-            AppHeader(
-              selectedIndex: 2, // Notes tab is selected
-              onTabSelected: _handleTabSelection,
-              onProfileMenuTap: _handleProfileAction,
-              pageIndex: 2,
-              showBackButton: false, // No back button on main screens
-            ),
+    // Wrap the entire scaffold with our keyboard handler from keyboard_util.dart
+    return KeyboardUtil.wrapWithKeyboardHandler(
+      context,
+      Scaffold(
+        backgroundColor: Color(0xFFF2E9E5), // Consistent background color
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Use the consistent AppHeader
+              AppHeader(
+                selectedIndex: 2, // Notes tab is selected
+                onTabSelected: _handleTabSelection,
+                onProfileMenuTap: _handleProfileAction,
+                pageIndex: 2,
+                showBackButton: false, // No back button on main screens
+              ),
 
-            // Search bar with consistent styling
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 12),
-                    Icon(Icons.search, color: Colors.grey.shade600),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: _searchNotes,
-                        decoration: const InputDecoration(
-                          hintText: 'Search Your Notes...',
-                          border: InputBorder.none,
-                          hintStyle: TextStyle(
-                            color: Colors.grey,
+              // Search bar with consistent styling
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 12),
+                      Icon(Icons.search, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: _searchNotes,
+                          decoration: const InputDecoration(
+                            hintText: 'Search Your Notes...',
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontFamily: 'Poppins',
                           ),
                         ),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontFamily: 'Poppins',
+                      ),
+                      // Filter button
+                      Container(
+                        width: 40,
+                        height: 40,
+                        margin: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
-                    ),
-                    // Filter button
-                    Container(
-                      width: 40,
-                      height: 40,
-                      margin: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.filter_list,
-                        color: Colors.blue.shade700,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    // Add button
-                    Container(
-                      width: 40,
-                      height: 40,
-                      margin: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF1E6),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.add,
-                          color: Color(0xFFFF8C42),
+                        child: Icon(
+                          Icons.filter_list,
+                          color: Colors.blue.shade700,
                           size: 20,
                         ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => AddNotePage(
-                                    preselectedCourseId: null,
-                                    initialTitle: null,
-                                  ),
-                            ),
-                          ).then((_) => _loadNotes());
-                        },
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      // Add button
+                      Container(
+                        width: 40,
+                        height: 40,
+                        margin: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF1E6),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.add,
+                            color: Color(0xFFFF8C42),
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => AddNotePage(
+                                      preselectedCourseId: null,
+                                      initialTitle: null,
+                                    ),
+                              ),
+                            ).then((_) => _loadNotes());
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // Main content with notes in a grid
-            Expanded(
-              child:
-                  _isLoading
-                      ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFFF8C42),
-                        ),
-                      )
-                      : _filteredNotes.isEmpty
-                      ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.edit_note_outlined,
-                              size: 64,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No notes found',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey,
-                                fontFamily: 'Poppins',
+              // Main content with notes in a grid
+              Expanded(
+                child:
+                    _isLoading
+                        ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFFF8C42),
+                          ),
+                        )
+                        : _filteredNotes.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.edit_note_outlined,
+                                size: 64,
+                                color: Colors.grey.shade400,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Add your first note using the + button',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                                fontFamily: 'Poppins',
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No notes found',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey,
+                                  fontFamily: 'Poppins',
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Add your first note using the + button',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        : GridView.builder(
+                          padding: const EdgeInsets.all(
+                            16,
+                          ), // Consistent padding
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                                childAspectRatio:
+                                    0.9, // Slightly taller cards for better content display
+                              ),
+                          itemCount: _filteredNotes.length,
+                          itemBuilder: (context, index) {
+                            final note = _filteredNotes[index];
+                            return _buildNoteCard(note);
+                          },
                         ),
-                      )
-                      : GridView.builder(
-                        padding: const EdgeInsets.all(16), // Consistent padding
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio:
-                                  0.9, // Slightly taller cards for better content display
-                            ),
-                        itemCount: _filteredNotes.length,
-                        itemBuilder: (context, index) {
-                          final note = _filteredNotes[index];
-                          return _buildNoteCard(note);
-                        },
-                      ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-      ),
-      // Floating action button with a consistent look
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (context) => AddNotePage(
-                    preselectedCourseId: null,
-                    initialTitle: null,
-                  ),
-            ),
-          ).then((_) => _loadNotes());
-        },
-        backgroundColor: const Color(0xFF4CAF50),
-        child: const Icon(Icons.add, color: Colors.white),
+        // Floating action button with a consistent look
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => AddNotePage(
+                      preselectedCourseId: null,
+                      initialTitle: null,
+                    ),
+              ),
+            ).then((_) => _loadNotes());
+          },
+          backgroundColor: const Color(0xFF4CAF50),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
     );
   }

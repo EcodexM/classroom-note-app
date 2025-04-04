@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:notex/auth.dart';
 import 'package:notex/widgets/courses.dart';
 import 'package:notex/MyNotes/mynote.dart';
-import 'package:notex/widgets/header.dart'; // Import the updated header
-import 'package:notex/course_notes.dart';
+import 'package:notex/widgets/header.dart';
+import 'package:notex/services/keyboard_util.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -68,106 +69,150 @@ class _HomePageState extends State<HomePage> {
     final screenHeight = MediaQuery.of(context).size.height;
     final bool isSmallScreen = screenWidth < 600;
 
-    return Scaffold(
-      backgroundColor: Color(
-        0xFFF2E9E5,
-      ), // Maintain consistent background color
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Use the updated header with consistent positioning
-            AppHeader(
-              selectedIndex: 0,
-              onTabSelected: _navigateToPage,
-              onSignOut: _handleSignOut,
-              pageIndex: 0, // This is the home page
-              showBackButton: false, // No back button on home page
-            ),
+    // Define consistent padding values based on header
+    final double horizontalPadding = 50.0; // Same as header horizontal margin
+    final double topPadding = 40.0; // Same as header vertical margin
+    final double bottomPadding = topPadding * 2; // Twice the top padding
 
-            // Main content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment:
-                      isSmallScreen
-                          ? CrossAxisAlignment.center
-                          : CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(height: 40),
+    return WillPopScope(
+      onWillPop: () async {
+        // Handle escape key or back button press
+        return false; // Return false to prevent default back behavior
+      },
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: (FocusNode node, KeyEvent event) {
+          // Check for Escape key press
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            // Handle escape key press
+            print('Escape key pressed');
+            // Go back to the previous page
+            Navigator.of(context).maybePop();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Scaffold(
+          backgroundColor: Color(
+            0xFFF2E9E5,
+          ), // Maintain consistent background color
+          body: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding, // Left padding
+                0, // No top padding since the header has its own margin
+                horizontalPadding, // Right padding
+                bottomPadding, // Bottom padding
+              ),
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start, // Left-align all content
+                children: [
+                  // Use the updated header with consistent positioning
+                  AppHeader(
+                    selectedIndex: 0,
+                    onTabSelected: _navigateToPage,
+                    onSignOut: _handleSignOut,
+                    pageIndex: 0, // This is the home page
+                    showBackButton: false, // No back button on home page
+                  ),
 
-                    // Profile image with responsive sizing
-                    Container(
-                      margin: EdgeInsets.only(bottom: isSmallScreen ? 20 : 40),
-                      width: isSmallScreen ? 120 : 180,
-                      height: isSmallScreen ? 120 : 180,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(),
-                        image: DecorationImage(
-                          image: AssetImage('images/arka.png'),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+                  // Main content container
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: topPadding),
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start, // Left-align all content
+                        mainAxisAlignment:
+                            MainAxisAlignment
+                                .center, // Vertically center in available space
+                        children: [
+                          // Profile image
+                          Container(
+                            margin: EdgeInsets.only(
+                              bottom: isSmallScreen ? 20 : 40,
+                            ),
+                            width: isSmallScreen ? 120 : 180,
+                            height: isSmallScreen ? 120 : 180,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(),
+                              image: DecorationImage(
+                                image: AssetImage('images/arka.png'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
 
-                    // Greeting text
-                    Text(
-                      'HELLO,',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 40 : 80,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2E2E2E),
-                        fontFamily: 'KoPubBatang',
-                        shadows: [
-                          Shadow(
-                            color: Color(0xFFFFC085).withOpacity(0.1),
-                            offset: Offset(2, 2),
-                            blurRadius: 4,
+                          // Greeting text
+                          Text(
+                            'HELLO,',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 40 : 80,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF2E2E2E),
+                              fontFamily: 'KoPubBatang',
+                              shadows: [
+                                Shadow(
+                                  color: Color(0xFFFFC085).withOpacity(0.1),
+                                  offset: Offset(2, 2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Username with gradient
+                          ShaderMask(
+                            shaderCallback:
+                                (bounds) => LinearGradient(
+                                  colors: [
+                                    Color(0xFF00C6FF),
+                                    Color(0xFF0072FF),
+                                  ],
+                                ).createShader(
+                                  Rect.fromLTWH(
+                                    0,
+                                    0,
+                                    bounds.width,
+                                    bounds.height,
+                                  ),
+                                ),
+                            child: Text(
+                              _userName.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 60 : 120,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0096C7),
+                                fontFamily: 'KoPubBatang',
+                              ),
+                              // Handle overflow for long usernames
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+
+                          // Tagline with responsive font size
+                          Text(
+                            'All your notes\nin one place.',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 38 : 75,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF6D6D6D),
+                              fontFamily: 'KoPubBatang',
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ],
                       ),
                     ),
-
-                    // Username with gradient
-                    ShaderMask(
-                      shaderCallback:
-                          (bounds) => LinearGradient(
-                            colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
-                          ).createShader(
-                            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                          ),
-                      child: Text(
-                        _userName.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: isSmallScreen ? 60 : 120,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0096C7),
-                          fontFamily: 'KoPubBatang',
-                        ),
-                        // Handle overflow for long usernames
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-
-                    // Tagline with responsive font size
-                    Text(
-                      'All your notes\nin one place.',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 38 : 75,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF6D6D6D),
-                        fontFamily: 'KoPubBatang',
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
