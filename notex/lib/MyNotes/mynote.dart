@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:notex/MyNotes/pdfViewer.dart';
-import 'package:notex/home_page.dart';
+import 'package:notex/homepage.dart';
 import 'package:notex/MyNotes/addnote.dart';
 import 'package:notex/services/offline_service.dart';
 import 'package:notex/widgets/header.dart'; // Import the modified AppHeader

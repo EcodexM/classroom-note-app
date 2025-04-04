@@ -70,3 +70,7 @@ flutter:
       fonts:
         - asset: fonts/porter-sans-inline-block.ttf
           weight: 400
+    - family: anton    
+      fonts:
+        - asset: fonts/anton.ttf
+          weight: 400

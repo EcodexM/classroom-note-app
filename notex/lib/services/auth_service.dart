@@ -14,8 +14,9 @@ class AuthService {
 
   /// Sign in with Google via REST (for platforms like Windows desktop)
   Future<UserCredential?> signInWithGoogleAccessToken(
-    String accessToken,
-  ) async {
+    String accessToken, {
+    String role = 'student',
+  }) async {
     final url = Uri.parse(
       'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=$_firebaseApiKey',
     );
@@ -40,7 +41,7 @@ class AuthService {
       );
 
       final userCredential = await _auth.signInWithCredential(credential);
-      await _initializeUser(userCredential.user);
+      await _initializeUser(userCredential.user, role: role);
       return userCredential;
     } else {
       print('Google sign-in failed: ${response.body}');
@@ -49,24 +50,21 @@ class AuthService {
   }
 
   /// Ensure user document exists with a default role
-  Future<void> _initializeUser(User? user) async {
+  Future<void> _initializeUser(User? user, {String role = 'student'}) async {
     if (user == null) return;
 
     final docRef = _firestore.collection('users').doc(user.uid);
     final docSnap = await docRef.get();
 
-    if (!docSnap.exists) {
-      await docRef.set({
-        'email': user.email,
-        'name': user.displayName ?? '',
-        'role': 'student', // default role
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
+    // Always set the document with an explicit role
+    await docRef.set({
+      'email': user.email,
+      'displayName': user.displayName ?? user.email?.split('@').first ?? '',
+      'role': role, // Explicitly set the role
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
-  /// Improved user registration method
-  /// Improved user registration method
   Future<UserCredential?> registerUser({
     required String email,
     required String password,

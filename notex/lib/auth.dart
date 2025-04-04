@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:notex/firebase_service.dart';
-import 'package:notex/home_page.dart';
+import 'package:notex/homepage.dart';
 import 'package:notex/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -116,19 +116,24 @@ class _AuthPageState extends State<AuthPage>
       final user = userCredential.user;
 
       if (user != null) {
+        // Determine the role based on the admin toggle
+        final role = isAdminLogin ? 'admin' : 'student';
+
+        // Add user to Firestore with the correct role
         await FirebaseService.addUser(
           userId: user.uid,
           email: user.email ?? '',
           displayName: user.email?.split('@').first,
           profileImage: user.photoURL,
-          role: 'student',
+          role: role,
+        );
+
+        // Navigate to home page
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
         );
       }
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage()),
-      );
     } catch (e) {
       _showError(e.toString());
     } finally {

@@ -43,29 +43,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _navigateToPage(int index) {
-    setState(() {
-      _selectedTab = index;
-    });
-
-    switch (index) {
-      case 1:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => CoursesPage()),
-        );
-        break;
-      case 2:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => MyNotesPage()),
-        );
-        break;
-      case 3:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => SharedNotesScreen()),
-        );
-        break;
+    if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => CoursesPage()),
+      );
+    } else if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => MyNotesPage()),
+      );
+    } else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => SharedNotesScreen()),
+      );
     }
   }
 
@@ -85,7 +77,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             // Use the updated header with consistent positioning
             AppHeader(
-              selectedIndex: _selectedTab,
+              selectedIndex: 0,
               onTabSelected: _navigateToPage,
               onSignOut: _handleSignOut,
               pageIndex: 0, // This is the home page
@@ -97,7 +89,11 @@ class _HomePageState extends State<HomePage> {
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      isSmallScreen
+                          ? CrossAxisAlignment.center
+                          : CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(height: 40),
 

@@ -28,6 +28,7 @@ class AppHeader extends StatefulWidget {
 class _AppHeaderState extends State<AppHeader> {
   String _currentTime = "";
   Timer? _timer;
+  bool _hasNotifications = true;
 
   @override
   void initState() {
@@ -53,12 +54,13 @@ class _AppHeaderState extends State<AppHeader> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final bool isSmallScreen = screenWidth < 600;
+    final bool isSmallScreen = screenWidth < 550;
+    final bool isLargeScreen = screenWidth >= 900;
     final bool isHomePage = widget.pageIndex == 0;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 50, vertical: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -72,61 +74,45 @@ class _AppHeaderState extends State<AppHeader> {
       ),
       child: Row(
         children: [
-          // Custom back button: Display only on Notes, Shared With Me, and Courses screens
-          if (widget.showBackButton && !isHomePage)
-            IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-              onPressed: () => Navigator.of(context).maybePop(),
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(minWidth: 30, minHeight: 30),
-            ),
+          // App icon and name in a row
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // App icon
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFC085),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.menu_book_rounded, color: Colors.white),
+              ),
 
-          // App icon
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFC085),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.menu_book_rounded, color: Colors.white),
+              // App name - Hide on smaller screens
+              if (!isSmallScreen)
+                const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Text(
+                    ' NOTEX',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'porterssans',
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+            ],
           ),
 
-          // App name
-          if (!isSmallScreen && !isHomePage)
-            const Padding(
-              padding: EdgeInsets.only(left: 8),
-              child: Text(
-                'NOTEX',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'porterssans',
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-
-          const Spacer(),
-
-          // Navigation Tabs - use a Row with SingleChildScrollView for smaller screens
-          if (!isSmallScreen && !isHomePage)
-            Flexible(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildTabItem("Courses", 1),
-                  _buildTabItem("Notes", 2),
-                  _buildTabItem("Shared With Me", 3),
-                ],
-              ),
-            )
-          else if (isSmallScreen && !isHomePage)
-            Flexible(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+          // Expanded container for centered navigation tabs
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 400),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildTabItem("Courses", 1),
                     _buildTabItem("Notes", 2),
@@ -135,50 +121,80 @@ class _AppHeaderState extends State<AppHeader> {
                 ),
               ),
             ),
+          ),
 
-          const Spacer(),
+          // Right-side elements in a row
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Notification bell icon
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_outlined),
+                    onPressed: () {
+                      // Show notifications panel
+                    },
+                    constraints: BoxConstraints(maxWidth: 40),
+                    padding: EdgeInsets.zero,
+                  ),
+                  if (_hasNotifications)
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
 
-          // Time (hide if overflow risk)
-          if (!isSmallScreen && !isHomePage)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Text(
-                _currentTime,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'KoPubBatang',
+              if (isLargeScreen)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    _currentTime,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'KoPubBatang',
+                    ),
+                  ),
+                ),
+
+              GestureDetector(
+                onTap: widget.onProfileMenuTap ?? widget.onSignOut,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey.shade200,
+                  ),
+                  child: Center(
+                    child:
+                        FirebaseAuth.instance.currentUser?.photoURL != null
+                            ? ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: Image.network(
+                                FirebaseAuth.instance.currentUser!.photoURL!,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                            : const Icon(
+                              Icons.person,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
+                  ),
                 ),
               ),
-            ),
-
-          // Profile Icon
-          GestureDetector(
-            onTap: widget.onProfileMenuTap ?? widget.onSignOut,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey.shade200,
-              ),
-              child: Center(
-                child:
-                    FirebaseAuth.instance.currentUser?.photoURL != null
-                        ? ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: Image.network(
-                            FirebaseAuth.instance.currentUser!.photoURL!,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                        : const Icon(
-                          Icons.person,
-                          size: 18,
-                          color: Colors.black54,
-                        ),
-              ),
-            ),
+            ],
           ),
         ],
       ),
@@ -188,13 +204,18 @@ class _AppHeaderState extends State<AppHeader> {
   Widget _buildTabItem(String title, int index) {
     final bool isSelected = widget.selectedIndex == index;
 
+    final String displayText =
+        title == "Shared With Me" && MediaQuery.of(context).size.width < 550
+            ? "Shared"
+            : title;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: InkWell(
         onTap: () => widget.onTabSelected(index),
         borderRadius: BorderRadius.circular(24),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration:
               isSelected
                   ? BoxDecoration(
@@ -203,9 +224,9 @@ class _AppHeaderState extends State<AppHeader> {
                   )
                   : null,
           child: Text(
-            title,
+            displayText,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
               color: isSelected ? const Color(0xFFFF8C42) : Colors.black87,
               fontFamily: 'KoPubBatang',
