@@ -6,39 +6,92 @@ class FirebaseService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   /// USERS ///
-  static Future<void> addUser({
+  static Future<bool> addUser({
     required String userId,
     required String email,
     String? displayName,
     String? profileImage,
     String role = 'student',
   }) async {
-    final docRef = _db.collection('users').doc(userId);
-    final docSnap = await docRef.get();
-    if (!docSnap.exists) {
-      await docRef.set({
-        'email': email,
-        'displayName': displayName ?? email.split('@')[0],
-        'profileImage': profileImage ?? '',
-        'role': role,
-        'enrollmentDate': FieldValue.serverTimestamp(),
-      });
-    } else if (!docSnap.data()!.containsKey('role')) {
-      await docRef.update({'role': role});
+    try {
+      print("Starting addUser process for userId: $userId, email: $email");
+
+      final docRef = _db.collection('users').doc(userId);
+
+      // First check if document exists
+      print("Checking if user document already exists");
+      final docSnap = await docRef.get();
+
+      if (!docSnap.exists) {
+        print("User document doesn't exist, creating new document");
+
+        // Create username from email or displayName
+        final String username =
+            displayName != null && displayName.isNotEmpty
+                ? displayName
+                : email.split('@').first;
+
+        // Define user data
+        final userData = {
+          'email': email,
+          'displayName': username,
+          'profileImage': profileImage ?? '',
+          'role': role,
+          'enrollmentDate': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+
+        print("Setting user document with data: $userData");
+
+        // Try to create the document
+        await docRef.set(userData);
+        print("User document successfully created in Firestore");
+        return true;
+      } else {
+        print("User document exists, checking if role needs updating");
+
+        // Check if role needs to be updated
+        final data = docSnap.data();
+        if (data != null &&
+            (!data.containsKey('role') || data['role'] != role)) {
+          print("Updating user role to: $role");
+          await docRef.update({
+            'role': role,
+            'lastLogin': FieldValue.serverTimestamp(),
+          });
+        } else {
+          print(
+            "User document exists with correct role, updating lastLogin timestamp",
+          );
+          await docRef.update({'lastLogin': FieldValue.serverTimestamp()});
+        }
+
+        print("User document successfully updated");
+        return true;
+      }
+    } catch (e) {
+      print("ERROR in addUser: $e");
+
+      // Try to get more detailed error information
+      if (e is FirebaseException) {
+        print("Firebase error code: ${e.code}");
+        print("Firebase error message: ${e.message}");
+
+        // Check for permission issues
+        if (e.code == 'permission-denied') {
+          print("PERMISSION DENIED: Check your Firestore security rules");
+        }
+
+        // Check for offline issues
+        if (e.code == 'unavailable') {
+          print("NETWORK ERROR: Device may be offline");
+        }
+      }
+
+      // Re-throw to let calling code handle it if needed
+      return false;
     }
-
-    final String username =
-        displayName != null && displayName.isNotEmpty
-            ? displayName
-            : email.split('@').first;
-
-    await _db.collection('users').doc(userId).set({
-      'email': email,
-      'displayName': username,
-      'profileImage': profileImage,
-      'role': role,
-      'enrollmentDate': FieldValue.serverTimestamp(),
-    });
   }
 
   /// COURSES ///

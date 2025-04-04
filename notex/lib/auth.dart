@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:notex/firebase_service.dart';
 import 'package:notex/home_page.dart';
-import 'package:notex/services/auth_service.dart'; // Import your admin dashboard page
+import 'package:notex/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthPage extends StatefulWidget {
   @override
@@ -147,89 +147,118 @@ class _AuthPageState extends State<AuthPage>
       final user = userCredential.user;
 
       if (user != null) {
-        // Retrieve the user's role from Firestore to determine the correct dashboard
-        String? userRole = await FirebaseService.getUserRole(
-          user.uid,
-        ); // Ensure this method is correctly implemented in FirebaseService
+        // Retrieve the user's role from Firestore
+        final userDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
 
-        if (isAdminLogin && userRole == 'admin') {
-          // Redirect to the Admin Dashboard if the user is an admin and is logging in from the admin page
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => HomePage()),
-          );
-        } else if (!isAdminLogin && userRole == 'student') {
-          // Redirect to the Student Dashboard if the user is a student and is logging from the student page
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => HomePage(),
-            ), // Ensure you have a StudentDashboard page
-          );
-        } else {
-          // If the role doesn't match the login type or the role is undefined, show an error
-          FirebaseAuth.instance
-              .signOut(); // Optionally sign out the user to force a re-login
+        final String userRole = userDoc.data()?['role'] ?? 'student';
+
+        // Check if the login type matches the user's role
+        if (isAdminLogin && userRole != 'admin') {
+          // Attempting admin login with a non-admin account
+          await FirebaseAuth.instance.signOut();
           _showError(
-            "Access Denied: You are not authorized to access this section.",
+            'This account is not authorized for administrator access.',
           );
+          return;
+        } else if (!isAdminLogin && userRole != 'student') {
+          // Attempting student login with a non-student account
+          await FirebaseAuth.instance.signOut();
+          _showError('This account is not authorized for student access.');
+          return;
         }
+
+        // Successful login
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
+        );
       }
+    } on FirebaseAuthException catch (e) {
+      // Handle authentication errors
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'No user found with this email.';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Incorrect password.';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This account has been disabled.';
+          break;
+        default:
+          errorMessage = e.message ?? 'An error occurred during login.';
+      }
+      _showError(errorMessage);
     } catch (e) {
-      _showError(e.toString());
+      _showError('An unexpected error occurred: ${e.toString()}');
     } finally {
       setState(() => isLoading = false);
     }
   }
 
   Future<void> register(String role) async {
-    // Added role parameter to specify the user's role at registration
+    // First, validate passwords match
     if (passwordController.text != confirmPasswordController.text) {
       _showError('Passwords do not match');
       return;
     }
 
+    // Ensure the role matches the current registration context
+    if (isAdminLogin && role != 'admin') {
+      role = 'admin';
+    } else if (!isAdminLogin && role != 'student') {
+      role = 'student';
+    }
+
     setState(() => isLoading = true);
 
     try {
-      final userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: emailController.text.trim(),
-            password: passwordController.text.trim(),
-          );
+      // Use the improved registration method from AuthService
+      final authService = AuthService();
+      final userCredential = await authService.registerUser(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+        role: role,
+      );
 
-      final user = userCredential.user;
+      final user = userCredential?.user;
       if (user != null) {
-        // Assign role during registration
-        await FirebaseService.addUser(
-          userId: user.uid,
-          email: user.email ?? '',
-          displayName: user.displayName,
-          profileImage: user.photoURL,
-          role: role, // Pass the role to the addUser function
+        // Redirect users to the home page
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
         );
-
-        // Redirect users to the appropriate dashboard based on the role
-        if (role == 'admin') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => HomePage(),
-            ), // Redirect to the Admin Dashboard
-          );
-        } else if (role == 'student') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => HomePage(),
-            ), // Redirect to the Student Dashboard
-          );
-        } else {
-          _showError("Invalid role specified. Registration failed.");
-        }
       }
     } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? 'An unknown error occurred');
+      // Handle specific Firebase Auth exceptions with user-friendly messages
+      String errorMessage;
+      switch (e.code) {
+        case 'email-already-in-use':
+          errorMessage =
+              'This email is already registered. Please try logging in.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'The email address is not valid.';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Email/password accounts are not enabled.';
+          break;
+        case 'weak-password':
+          errorMessage =
+              'The password is too weak. Please choose a stronger password.';
+          break;
+        default:
+          errorMessage =
+              e.message ?? 'An unknown error occurred during registration.';
+      }
+      _showError(errorMessage);
+    } catch (e) {
+      _showError('An unexpected error occurred: ${e.toString()}');
     } finally {
       setState(() => isLoading = false);
     }

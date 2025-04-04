@@ -65,6 +65,113 @@ class AuthService {
     }
   }
 
+  /// Improved user registration method
+  /// Improved user registration method
+  Future<UserCredential?> registerUser({
+    required String email,
+    required String password,
+    required String role,
+  }) async {
+    try {
+      // First, check if the email is already registered in Firebase Auth
+      try {
+        // Try to sign in first to see if the account exists
+        await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        // If sign-in succeeds, the account already exists
+        throw FirebaseAuthException(
+          code: 'email-already-in-use',
+          message: 'The account already exists for that email.',
+        );
+      } on FirebaseAuthException catch (signInError) {
+        // If sign-in fails, check if it's because the user doesn't exist
+        if (signInError.code != 'wrong-password' &&
+            signInError.code != 'user-not-found') {
+          // If it's a different error, rethrow
+          throw signInError;
+        }
+      }
+
+      // If we've reached here, the user doesn't exist or the password is wrong
+      // Proceed with user creation
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = userCredential.user;
+      if (user != null) {
+        // Validate and set the role
+        final validRoles = ['student', 'admin', 'teacher'];
+        final normalizedRole = validRoles.contains(role) ? role : 'student';
+
+        // Add user to Firestore, overwriting any existing document
+        await _firestore.collection('users').doc(user.uid).set(
+          {
+            'email': user.email,
+            'role': normalizedRole,
+            'createdAt': FieldValue.serverTimestamp(),
+            'displayName': user.displayName ?? email.split('@').first,
+          },
+          SetOptions(merge: true),
+        ); // Use merge to avoid completely overwriting
+      }
+
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      // Handle specific Firebase Auth exceptions
+      if (e.code == 'email-already-in-use') {
+        // Check if there's a user document with this email
+        final userQuery =
+            await _firestore
+                .collection('users')
+                .where('email', isEqualTo: email)
+                .get();
+
+        if (userQuery.docs.isEmpty) {
+          // If no user document exists, attempt to create one
+          try {
+            final userCredential = await _auth.createUserWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
+
+            final user = userCredential.user;
+            if (user != null) {
+              // Validate and set the role
+              final validRoles = ['student', 'admin', 'teacher'];
+              final normalizedRole =
+                  validRoles.contains(role) ? role : 'student';
+
+              await _firestore.collection('users').doc(user.uid).set({
+                'email': user.email,
+                'role': normalizedRole,
+                'createdAt': FieldValue.serverTimestamp(),
+                'displayName': user.displayName ?? email.split('@').first,
+              });
+
+              return userCredential;
+            }
+          } catch (recreationError) {
+            // If recreation fails, rethrow the original error
+            rethrow;
+          }
+        }
+
+        // If a user document exists, rethrow the original error
+        rethrow;
+      }
+      rethrow;
+    } catch (e) {
+      // Handle any other unexpected errors
+      print('Unexpected error during registration: $e');
+      rethrow;
+    }
+  }
+
   /// Check if current user is admin
   Future<bool> isCurrentUserAdmin() async {
     return _isCurrentUserRole('admin');

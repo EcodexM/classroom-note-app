@@ -527,23 +527,10 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   }
 
   void _openPeerReview() {
-    if (widget.isOfflineFile || widget.courseId.isEmpty) return;
-
-    Navigator.push(
+    // Peer review functionality removed temporarily
+    ScaffoldMessenger.of(
       context,
-      MaterialPageRoute(
-        builder:
-            (context) => PeerReviewScreen(
-              noteId:
-                  widget.noteId.isNotEmpty
-                      ? widget.noteId
-                      : '', // Need to implement noteId lookup if empty
-              noteTitle: widget.noteTitle,
-              courseId: widget.courseId,
-              courseCode: widget.courseCode,
-            ),
-      ),
-    );
+    ).showSnackBar(SnackBar(content: Text('Peer review feature coming soon')));
   }
 
   @override
@@ -603,10 +590,16 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
                 children: [
                   // Add Rating Summary Widget if not an offline file
                   if (widget.noteId.isNotEmpty)
-                    RatingSummaryWidget(noteId: widget.noteId),
-
+                    Text(
+                      'Rating summary will be available soon',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  SizedBox(height: 8),
                   Text(
-                    'Rate this note:',
+                    'Rating summary will be available soon',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Poppins',
