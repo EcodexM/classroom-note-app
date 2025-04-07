@@ -60,7 +60,7 @@ class _AppHeaderState extends State<AppHeader> {
     final bool isLargeScreen = screenWidth >= 900;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 50, vertical: 40),
+      margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 45),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,

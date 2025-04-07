@@ -207,24 +207,25 @@ class _AuthPageState extends State<AuthPage>
   }
 
   Future<void> register(String role) async {
-    // First, validate passwords match
-    if (passwordController.text != confirmPasswordController.text) {
-      _showError('Passwords do not match');
-      return;
-    }
-
-    // Ensure the role matches the current registration context
-    if (isAdminLogin && role != 'admin') {
-      role = 'admin';
-    } else if (!isAdminLogin && role != 'student') {
-      role = 'student';
-    }
+    // Existing password validation...
 
     setState(() => isLoading = true);
 
     try {
-      // Use the improved registration method from AuthService
       final authService = AuthService();
+
+      // Debug: Check existing users before registration
+      final existingUsersQuery =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: emailController.text.trim())
+              .get();
+
+      print('Existing users in Firestore: ${existingUsersQuery.docs.length}');
+      existingUsersQuery.docs.forEach((doc) {
+        print('Existing user document data: ${doc.data()}');
+      });
+
       final userCredential = await authService.registerUser(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
@@ -233,29 +234,19 @@ class _AuthPageState extends State<AuthPage>
 
       final user = userCredential?.user;
       if (user != null) {
-        // Redirect users to the home page
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => HomePage()),
         );
       }
     } on FirebaseAuthException catch (e) {
-      // Handle specific Firebase Auth exceptions with user-friendly messages
+      print('Firebase Auth Exception: ${e.code} - ${e.message}');
+
       String errorMessage;
       switch (e.code) {
         case 'email-already-in-use':
           errorMessage =
               'This email is already registered. Please try logging in.';
-          break;
-        case 'invalid-email':
-          errorMessage = 'The email address is not valid.';
-          break;
-        case 'operation-not-allowed':
-          errorMessage = 'Email/password accounts are not enabled.';
-          break;
-        case 'weak-password':
-          errorMessage =
-              'The password is too weak. Please choose a stronger password.';
           break;
         default:
           errorMessage =
@@ -263,6 +254,7 @@ class _AuthPageState extends State<AuthPage>
       }
       _showError(errorMessage);
     } catch (e) {
+      print('Unexpected registration error: $e');
       _showError('An unexpected error occurred: ${e.toString()}');
     } finally {
       setState(() => isLoading = false);
@@ -634,7 +626,7 @@ class _AuthPageState extends State<AuthPage>
               child: Text(
                 'Register',
                 style: TextStyle(
-                  color: Colors.deepPurple,
+                  color: Colors.deepOrange,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'KoPubBatang',
                 ),

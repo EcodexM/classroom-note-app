@@ -4,13 +4,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:notex/models/user_role.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Add this for environment variable management
+import 'package:notex/firebase_options.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Use environment variable to store the Firebase API key
-  final String _firebaseApiKey = dotenv.env['FIREBASE_API_KEY'] ?? '';
+  final String _firebaseApiKey =
+      dotenv.env['FIREBASE_API_KEY'] ?? firebaseOptions.apiKey;
 
   /// Sign in with Google via REST (for platforms like Windows desktop)
   Future<UserCredential?> signInWithGoogleAccessToken(
@@ -53,16 +55,44 @@ class AuthService {
   Future<void> _initializeUser(User? user, {String role = 'student'}) async {
     if (user == null) return;
 
+    print("Initializing user document for UID: ${user.uid} with role: $role");
+
     final docRef = _firestore.collection('users').doc(user.uid);
     final docSnap = await docRef.get();
 
-    // Always set the document with an explicit role
-    await docRef.set({
-      'email': user.email,
-      'displayName': user.displayName ?? user.email?.split('@').first ?? '',
-      'role': role, // Explicitly set the role
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    // Set a timestamp for when the document was created or last accessed
+    final timestamp = FieldValue.serverTimestamp();
+    final displayName = user.displayName ?? user.email?.split('@').first ?? '';
+
+    // If document exists, update lastLogin
+    if (docSnap.exists) {
+      print("User document exists, updating lastLogin");
+      await docRef.update({
+        'lastLogin': timestamp,
+        // Only update role if it's different
+        if (docSnap.data()?['role'] != role) 'role': role,
+      });
+    } else {
+      // If document doesn't exist, create it with full user data
+      print("Creating new user document with role: $role");
+      await docRef.set({
+        'email': user.email,
+        'displayName': displayName,
+        'photoURL': user.photoURL,
+        'role': role,
+        'createdAt': timestamp,
+        'lastLogin': timestamp,
+      });
+    }
+
+    // Verify document was created/updated
+    final verifySnap = await docRef.get();
+    if (verifySnap.exists) {
+      print("User document verification: Success");
+      print("Document data: ${verifySnap.data()}");
+    } else {
+      print("WARNING: User document verification failed");
+    }
   }
 
   Future<UserCredential?> registerUser({
@@ -71,6 +101,8 @@ class AuthService {
     required String role,
   }) async {
     try {
+      print("Starting registration for email: $email with role: $role");
+
       // First, check if the email is already registered in Firebase Auth
       try {
         // Try to sign in first to see if the account exists
@@ -80,6 +112,7 @@ class AuthService {
         );
 
         // If sign-in succeeds, the account already exists
+        print("Account already exists for email: $email");
         throw FirebaseAuthException(
           code: 'email-already-in-use',
           message: 'The account already exists for that email.',
@@ -89,12 +122,31 @@ class AuthService {
         if (signInError.code != 'wrong-password' &&
             signInError.code != 'user-not-found') {
           // If it's a different error, rethrow
+          print(
+            "Error during auth check: ${signInError.code} - ${signInError.message}",
+          );
           throw signInError;
         }
+
+        if (signInError.code == 'wrong-password') {
+          print("Account exists but password is incorrect");
+          throw FirebaseAuthException(
+            code: 'email-already-in-use',
+            message: 'The account already exists for that email.',
+          );
+        }
+
+        // If we reach here, the user doesn't exist, which is what we want for registration
+        print("Account doesn't exist, proceeding with registration");
       }
 
-      // If we've reached here, the user doesn't exist or the password is wrong
-      // Proceed with user creation
+      // Validate role before creating account
+      final validRoles = ['student', 'admin', 'teacher'];
+      final normalizedRole = validRoles.contains(role) ? role : 'student';
+      print("Using normalized role: $normalizedRole");
+
+      // Create a new user account
+      print("Creating new user account");
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -102,70 +154,38 @@ class AuthService {
 
       final user = userCredential.user;
       if (user != null) {
-        // Validate and set the role
-        final validRoles = ['student', 'admin', 'teacher'];
-        final normalizedRole = validRoles.contains(role) ? role : 'student';
+        print("User created successfully with UID: ${user.uid}");
 
-        // Add user to Firestore, overwriting any existing document
-        await _firestore.collection('users').doc(user.uid).set(
-          {
-            'email': user.email,
-            'role': normalizedRole,
-            'createdAt': FieldValue.serverTimestamp(),
-            'displayName': user.displayName ?? email.split('@').first,
-          },
-          SetOptions(merge: true),
-        ); // Use merge to avoid completely overwriting
+        // Create the user document in Firestore
+        print("Creating user document in Firestore");
+        await _firestore.collection('users').doc(user.uid).set({
+          'email': user.email,
+          'displayName': user.displayName ?? email.split('@').first,
+          'role': normalizedRole,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+        });
+
+        // Verify the document was created
+        final docSnapshot =
+            await _firestore.collection('users').doc(user.uid).get();
+        if (docSnapshot.exists) {
+          print(
+            "User document created successfully with role: ${docSnapshot.data()?['role']}",
+          );
+        } else {
+          print("WARNING: User document was not created successfully");
+        }
       }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
       // Handle specific Firebase Auth exceptions
-      if (e.code == 'email-already-in-use') {
-        // Check if there's a user document with this email
-        final userQuery =
-            await _firestore
-                .collection('users')
-                .where('email', isEqualTo: email)
-                .get();
-
-        if (userQuery.docs.isEmpty) {
-          // If no user document exists, attempt to create one
-          try {
-            final userCredential = await _auth.createUserWithEmailAndPassword(
-              email: email,
-              password: password,
-            );
-
-            final user = userCredential.user;
-            if (user != null) {
-              // Validate and set the role
-              final validRoles = ['student', 'admin', 'teacher'];
-              final normalizedRole =
-                  validRoles.contains(role) ? role : 'student';
-
-              await _firestore.collection('users').doc(user.uid).set({
-                'email': user.email,
-                'role': normalizedRole,
-                'createdAt': FieldValue.serverTimestamp(),
-                'displayName': user.displayName ?? email.split('@').first,
-              });
-
-              return userCredential;
-            }
-          } catch (recreationError) {
-            // If recreation fails, rethrow the original error
-            rethrow;
-          }
-        }
-
-        // If a user document exists, rethrow the original error
-        rethrow;
-      }
-      rethrow;
+      print("Firebase Auth Exception: ${e.code} - ${e.message}");
+      rethrow; // Rethrow to be handled by the UI
     } catch (e) {
       // Handle any other unexpected errors
-      print('Unexpected error during registration: $e');
+      print("Unexpected error during registration: $e");
       rethrow;
     }
   }

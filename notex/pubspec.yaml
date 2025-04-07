@@ -30,7 +30,7 @@ dependencies:
   googleapis_auth: any
   ntp: ^2.0.0
   shared_preferences: 2.5.3
-  flutter_dotenv: ^5.0.2
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -40,6 +40,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - keys.env
     - icons/bell.png
     - images/arka.png
     - images/login.jpg
@@ -73,5 +74,5 @@ flutter:
           weight: 400
     - family: anton    
       fonts:
-        - asset: fonts/anton.ttf
+        - asset: fonts/Anton-Regular.ttf
           weight: 400
