@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:notex/homepage.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:notex/MyNotes/pdfViewer.dart';
-import 'package:notex/homepage.dart';
 import 'package:notex/MyNotes/addnote.dart';
 import 'package:notex/services/offline_service.dart';
 import 'package:notex/widgets/header.dart'; // Import the modified AppHeader
 import 'package:notex/models/note.dart';
-import 'package:intl/intl.dart';
-import 'package:notex/services/keyboard_util.dart'; // Import your keyboard utility
+import 'package:notex/services/keyboard_util.dart';
+import 'package:notex/services/notemgn.dart';
+import 'package:notex/widgets/courses.dart';
+import 'package:notex/widgets/sharednote.dart';
 
 class MyNotesPage extends StatefulWidget {
   const MyNotesPage({Key? key}) : super(key: key);
@@ -34,20 +36,25 @@ class _MyNotesPageState extends State<MyNotesPage> {
 
   // Handler for tab selection in the header
   void _handleTabSelection(int index) {
-    // Navigate based on index
-    if (index != 2) {
-      // Not the current tab (notes)
-      switch (index) {
-        case 0: // Home
-          Navigator.pushReplacementNamed(context, '/home');
-          break;
-        case 1: // Courses
-          Navigator.pushReplacementNamed(context, '/courses');
-          break;
-        case 3: // Shared With Me
-          Navigator.pushReplacementNamed(context, '/shared');
-          break;
-      }
+    switch (index) {
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => CoursesPage()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => MyNotesPage()),
+        );
+        break;
+      case 3:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => SharedNotesScreen()),
+        );
+        break;
     }
   }
 
@@ -90,59 +97,47 @@ class _MyNotesPageState extends State<MyNotesPage> {
     });
 
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
+      final noteService = NoteService();
+      final notes = await noteService.getUserNotes();
 
-      // Load all notes for the current user
-      final notesQuery =
-          await FirebaseFirestore.instance
-              .collection('notes')
-              .where('ownerEmail', isEqualTo: currentUser.email)
-              .orderBy('uploadDate', descending: true)
-              .get();
+      // Convert to the existing format
+      List<Map<String, dynamic>> noteMaps = [];
+      for (var note in notes) {
+        final courseDoc =
+            await FirebaseFirestore.instance
+                .collection('courses')
+                .doc(note.courseId)
+                .get();
 
-      List<Map<String, dynamic>> notes = [];
-
-      for (var doc in notesQuery.docs) {
-        // Get course details for each note
-        final courseId = doc.data()['courseId'] ?? '';
         String courseCode = 'Unknown';
         String courseName = 'Unknown Course';
 
-        if (courseId.isNotEmpty) {
-          final courseDoc =
-              await FirebaseFirestore.instance
-                  .collection('courses')
-                  .doc(courseId)
-                  .get();
-
-          if (courseDoc.exists) {
-            courseCode = courseDoc.data()?['code'] ?? 'Unknown';
-            courseName = courseDoc.data()?['name'] ?? 'Unknown Course';
-          }
+        if (courseDoc.exists) {
+          courseCode = courseDoc.data()?['code'] ?? 'Unknown';
+          courseName = courseDoc.data()?['name'] ?? 'Unknown Course';
         }
 
-        notes.add({
-          'id': doc.id,
-          'title': doc.data()['title'] ?? 'Untitled Note',
-          'courseId': courseId,
+        noteMaps.add({
+          'id': note.id,
+          'title': note.title,
+          'courseId': note.courseId,
           'courseCode': courseCode,
           'courseName': courseName,
-          'ownerEmail': doc.data()['ownerEmail'] ?? 'Unknown',
-          'fileUrl': doc.data()['fileUrl'] ?? '',
-          'fileName': doc.data()['fileName'] ?? 'document.pdf',
-          'uploadDate': doc.data()['uploadDate']?.toDate() ?? DateTime.now(),
-          'downloads': doc.data()['downloads'] ?? 0,
-          'averageRating': doc.data()['averageRating'] ?? 0.0,
-          'isPublic': doc.data()['isPublic'] ?? false,
-          'tags': List<String>.from(doc.data()['tags'] ?? []),
+          'ownerEmail': note.ownerEmail,
+          'fileUrl': note.fileUrl,
+          'fileName': note.fileName,
+          'uploadDate': note.uploadDate,
+          'downloads': note.downloads,
+          'averageRating': note.averageRating,
+          'isPublic': note.isPublic,
+          'tags': note.tags,
         });
       }
 
       if (mounted) {
         setState(() {
-          _notes = notes;
-          _filteredNotes = notes;
+          _notes = noteMaps;
+          _filteredNotes = noteMaps;
           _isLoading = false;
         });
       }
@@ -282,10 +277,16 @@ class _MyNotesPageState extends State<MyNotesPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Wrap the entire scaffold with our keyboard handler from keyboard_util.dart
-    return KeyboardUtil.wrapWithKeyboardHandler(
-      context,
-      Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        // Custom back navigation logic
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
+        );
+        return false; // Prevent default back button behavior
+      },
+      child: Scaffold(
         backgroundColor: Color(0xFFF2E9E5), // Consistent background color
         body: SafeArea(
           child: Column(

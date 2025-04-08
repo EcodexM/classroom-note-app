@@ -6,6 +6,7 @@ import 'package:notex/widgets/courses.dart';
 import 'package:notex/MyNotes/mynote.dart';
 import 'package:notex/widgets/header.dart';
 import 'package:notex/services/keyboard_util.dart';
+import 'package:notex/widgets/sharednote.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -43,22 +44,26 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _navigateToPage(int index) {
-    if (index == 1) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => CoursesPage()),
-      );
-    } else if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => MyNotesPage()),
-      );
-    } else if (index == 3) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => SharedNotesScreen()),
-      );
+  void _handleTabSelection(int index) {
+    switch (index) {
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => CoursesPage()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => MyNotesPage()),
+        );
+        break;
+      case 3:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => SharedNotesScreen()),
+        );
+        break;
     }
   }
 
@@ -68,156 +73,73 @@ class _HomePageState extends State<HomePage> {
     final screenHeight = MediaQuery.of(context).size.height;
     final bool isSmallScreen = screenWidth < 600;
 
+    final double margin = screenWidth * 0.025;
+
     return Scaffold(
       backgroundColor: Color(0xFF2E2E2E),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Center(
-            child: Container(
-              width: constraints.maxWidth * 0.95,
-              height: constraints.maxHeight * 0.95,
-              decoration: BoxDecoration(
-                color: Color(0xFFF2E9E2),
-                borderRadius: BorderRadius.circular(24),
+      body: Container(
+        margin: EdgeInsets.all(margin), // Consistent margin
+        decoration: BoxDecoration(
+          color: Color(0xFFF2E9E2),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              AppHeader(
+                selectedIndex: 0,
+                onTabSelected: _handleTabSelection,
+                onSignOut: _handleSignOut,
+                pageIndex: 0,
+                showBackButton: false,
               ),
-              child: Column(
-                children: [
-                  AppHeader(
-                    selectedIndex: 0,
-                    onTabSelected: _navigateToPage,
-                    onSignOut: _handleSignOut,
-                    pageIndex: 0,
-                    showBackButton: false,
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: margin * 2, // Consistent horizontal padding
+                    vertical: margin, // Consistent vertical padding
                   ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 50.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'CREATE.\nORGANISE.\nEDUCATE.',
-                                  style: TextStyle(
-                                    fontSize: isSmallScreen ? 40 : 80,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF2E2E2E),
-                                    fontFamily: 'Boldonse',
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                'All your notes in one place.',
-                                style: TextStyle(
-                                  fontSize: isSmallScreen ? 16 : 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2E2E2E),
-                                  fontFamily: 'Boldonse',
-                                ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'CREATE.\nORGANISE.\nEDUCATE.',
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 40 : 80,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF2E2E2E),
+                                fontFamily: 'Boldonse',
+                                height: 1.5,
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class SharedNotesScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFF2E2E2E),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Center(
-            child: Container(
-              width: constraints.maxWidth * 0.95,
-              height: constraints.maxHeight * 0.95,
-              decoration: BoxDecoration(
-                color: Color(0xFFF2E9E5),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Column(
-                children: [
-                  AppHeader(
-                    selectedIndex: 3,
-                    pageIndex: 3,
-                    onTabSelected: (index) {
-                      if (index != 3) {
-                        Navigator.pop(context);
-                        switch (index) {
-                          case 0:
-                            Navigator.pushReplacementNamed(context, '/');
-                            break;
-                          case 1:
-                            Navigator.pushReplacementNamed(context, '/courses');
-                            break;
-                          case 2:
-                            Navigator.pushReplacementNamed(context, '/notes');
-                            break;
-                        }
-                      }
-                    },
-                    onSignOut: () async {
-                      await FirebaseAuth.instance.signOut();
-                      Navigator.pushReplacementNamed(context, '/');
-                    },
-                    showBackButton: true,
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.folder_shared,
-                            size: 80,
-                            color: Colors.grey[400],
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'No shared notes yet',
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'All your notes in one place.',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: isSmallScreen ? 16 : 32,
                               fontWeight: FontWeight.bold,
-                              fontFamily: 'Poppins',
+                              color: Color(0xFF2E2E2E),
+                              fontFamily: 'Boldonse',
                             ),
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Notes shared with you will appear here',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
     );
   }

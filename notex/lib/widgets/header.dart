@@ -53,6 +53,86 @@ class _AppHeaderState extends State<AppHeader> {
     });
   }
 
+  Widget buildPageContainer({
+    required BuildContext context,
+    required Widget child,
+    int selectedIndex = 0,
+    bool showBackButton = false,
+    VoidCallback? onSignOut,
+  }) {
+    return Scaffold(
+      backgroundColor: Color(0xFF2E2E2E),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final double margin =
+              constraints.maxWidth * 0.025; // Consistent margin calculation
+
+          return Center(
+            child: Container(
+              width: constraints.maxWidth * 0.95,
+              height: constraints.maxHeight * 0.95,
+              decoration: BoxDecoration(
+                color: Color(0xFFF2E9E5),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    AppHeader(
+                      selectedIndex: selectedIndex,
+                      onTabSelected: (index) {
+                        if (index != selectedIndex) {
+                          Navigator.pop(context);
+                          switch (index) {
+                            case 0:
+                              Navigator.pushReplacementNamed(context, '/');
+                              break;
+                            case 1:
+                              Navigator.pushReplacementNamed(
+                                context,
+                                '/courses',
+                              );
+                              break;
+                            case 2:
+                              Navigator.pushReplacementNamed(context, '/notes');
+                              break;
+                            case 3:
+                              Navigator.pushReplacementNamed(
+                                context,
+                                '/shared',
+                              );
+                              break;
+                          }
+                        }
+                      },
+                      onSignOut:
+                          onSignOut ??
+                          () async {
+                            await FirebaseAuth.instance.signOut();
+                            Navigator.pushReplacementNamed(context, '/');
+                          },
+                      pageIndex: selectedIndex,
+                      showBackButton: showBackButton,
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: margin * 2,
+                          vertical: margin,
+                        ),
+                        child: child,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -60,7 +140,7 @@ class _AppHeaderState extends State<AppHeader> {
     final bool isLargeScreen = screenWidth >= 900;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 45),
+      margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,

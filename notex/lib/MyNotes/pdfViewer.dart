@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:notex/services/notemgn.dart';
+import 'package:notex/widgets/rating.dart';
 import 'dart:io';
 
 class PDFViewerPage extends StatefulWidget {
@@ -176,67 +178,16 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   }
 
   Future<void> _submitRating(double rating) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
+    final noteService = NoteService();
 
     try {
-      DocumentSnapshot? noteDoc;
+      final result = await noteService.rateNote(
+        widget.noteId,
+        rating.toInt(),
+        null, // No comment for simple rating
+      );
 
-      if (widget.noteId.isNotEmpty) {
-        noteDoc =
-            await FirebaseFirestore.instance
-                .collection('notes')
-                .doc(widget.noteId)
-                .get();
-      } else {
-        final noteQuery =
-            await FirebaseFirestore.instance
-                .collection('notes')
-                .where('fileUrl', isEqualTo: widget.pdfUrl)
-                .limit(1)
-                .get();
-
-        if (noteQuery.docs.isNotEmpty) {
-          noteDoc = noteQuery.docs.first;
-        }
-      }
-
-      if (noteDoc != null && noteDoc.exists) {
-        // Add or update user rating
-        await FirebaseFirestore.instance
-            .collection('notes')
-            .doc(noteDoc.id)
-            .collection('ratings')
-            .doc(currentUser.uid)
-            .set({
-              'rating': rating,
-              'userEmail': currentUser.email,
-              'timestamp': FieldValue.serverTimestamp(),
-            });
-
-        // Calculate new average rating
-        final ratingsQuery =
-            await FirebaseFirestore.instance
-                .collection('notes')
-                .doc(noteDoc.id)
-                .collection('ratings')
-                .get();
-
-        double sum = 0;
-        int count = ratingsQuery.docs.length;
-
-        for (var doc in ratingsQuery.docs) {
-          sum += (doc.data()['rating'] as num?)?.toDouble() ?? 0;
-        }
-
-        double newAverage = count > 0 ? sum / count : 0;
-
-        // Update average rating in note document
-        await FirebaseFirestore.instance
-            .collection('notes')
-            .doc(noteDoc.id)
-            .update({'averageRating': newAverage});
-
+      if (result.isSuccess) {
         setState(() {
           _userRating = rating;
           _hasRated = true;
@@ -245,11 +196,15 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Thank you for your rating!')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error ?? 'Rating failed')),
+        );
       }
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error submitting rating: $error')),
-      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error submitting rating: $e')));
     }
   }
 
@@ -606,19 +561,13 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
                     ),
                   ),
                   SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (index) {
-                      return IconButton(
-                        icon: Icon(
-                          index < _userRating ? Icons.star : Icons.star_border,
-                          color: Colors.amber,
-                          size: 32,
-                        ),
-                        onPressed:
-                            _hasRated ? null : () => _submitRating(index + 1),
-                      );
-                    }),
+                  // Replace this section with the RatingBar widget
+                  Center(
+                    child: RatingBar(
+                      currentRating: _userRating,
+                      onRatingChanged: _hasRated ? null : _submitRating,
+                      enabled: !_hasRated,
+                    ),
                   ),
                   Divider(),
                   Text(
@@ -722,8 +671,3 @@ class Comment {
     required this.timestamp,
   });
 }
-
-// Note: RatingSummaryWidget is referenced in this file but would be in:
-// lib/widgets/rating_summary_widget.dart
-// PeerReviewScreen is referenced but would be in:
-// lib/screens/peer_review_screen.dart

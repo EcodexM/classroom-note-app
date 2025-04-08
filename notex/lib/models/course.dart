@@ -6,6 +6,7 @@ class Course {
   final int noteCount;
   final String color;
   final bool isEnrolled;
+  final String instructor;
 
   Course({
     required this.id,
@@ -15,6 +16,7 @@ class Course {
     required this.noteCount,
     required this.color,
     this.isEnrolled = false,
+    required this.instructor,
   });
 
   // Convert a Firebase document to a Course object
@@ -27,6 +29,7 @@ class Course {
       noteCount: data['noteCount'] ?? 0,
       color: data['color'] ?? '#3F51B5',
       isEnrolled: data['isEnrolled'] ?? false,
+      instructor: data['instructor'] ?? '',
     );
   }
 
@@ -39,6 +42,7 @@ class Course {
       'noteCount': noteCount,
       'color': color,
       'isEnrolled': isEnrolled,
+      'instructor': instructor,
     };
   }
 }

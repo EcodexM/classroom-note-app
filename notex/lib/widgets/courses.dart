@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:notex/widgets/header.dart'; // Import updated header
+import 'package:notex/MyNotes/mynote.dart';
+import 'package:notex/widgets/header.dart';
+import 'package:notex/services/coursesvs.dart';
+import 'package:notex/homepage.dart';
+import 'package:notex/widgets/sharednote.dart';
 
 class CoursesPage extends StatefulWidget {
   @override
@@ -26,46 +30,24 @@ class _CoursesPageState extends State<CoursesPage> {
     });
 
     try {
-      final currentUser = _auth.currentUser;
-      if (currentUser == null) return;
+      final courseService = CourseService();
+      final courses = await courseService.getUserCourses();
 
-      // Get user's enrolled courses
-      final enrollmentsQuery =
-          await FirebaseFirestore.instance
-              .collection('course_enrollments')
-              .where('studentEmail', isEqualTo: currentUser.email)
-              .get();
-
-      final enrolledCourseIds =
-          enrollmentsQuery.docs
-              .map((doc) => doc.data()['courseId'] as String)
-              .toList();
-
-      // Fetch details for each enrolled course
-      List<Map<String, dynamic>> courses = [];
-
-      for (var courseId in enrolledCourseIds) {
-        final courseDoc =
-            await FirebaseFirestore.instance
-                .collection('courses')
-                .doc(courseId)
-                .get();
-
-        if (courseDoc.exists) {
-          courses.add({
-            'id': courseDoc.id,
-            'code': courseDoc.data()?['code'] ?? 'Unknown',
-            'name': courseDoc.data()?['name'] ?? 'Unknown Course',
-            'instructor': courseDoc.data()?['instructor'] ?? 'Unknown',
-            'department': courseDoc.data()?['department'] ?? '',
-            'noteCount': courseDoc.data()?['noteCount'] ?? 0,
-            'color': courseDoc.data()?['color'] ?? '#3F51B5',
-          });
-        }
+      List<Map<String, dynamic>> courseMaps = [];
+      for (var course in courses) {
+        courseMaps.add({
+          'id': course.id,
+          'code': course.code,
+          'name': course.name,
+          'instructor': course.instructor ?? 'Unknown',
+          'department': course.department,
+          'noteCount': course.noteCount,
+          'color': course.color,
+        });
       }
 
       setState(() {
-        _userCourses = courses;
+        _userCourses = courseMaps;
         _isLoading = false;
       });
     } catch (e) {
@@ -163,20 +145,26 @@ class _CoursesPageState extends State<CoursesPage> {
 
   // Function to handle tab selection
   void _handleTabSelection(int index) {
-    // Navigate based on selected tab
     if (index != 1) {
-      // Not the current tab (courses)
-      Navigator.pop(context);
-
+      // Not the current Courses tab
       switch (index) {
         case 0: // Home
-          Navigator.pushReplacementNamed(context, '/');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => HomePage()),
+          );
           break;
         case 2: // Notes
-          Navigator.pushReplacementNamed(context, '/notes');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => MyNotesPage()),
+          );
           break;
-        case 3: // Shared with me
-          Navigator.pushReplacementNamed(context, '/shared');
+        case 3: // Shared With Me
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => SharedNotesScreen()),
+          );
           break;
       }
     }
@@ -184,39 +172,107 @@ class _CoursesPageState extends State<CoursesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFF2E9E5), // Consistent background color
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Use updated header with consistent positioning
-            AppHeader(
-              selectedIndex: 1, // Courses tab
-              pageIndex: 1,
-              onTabSelected: _handleTabSelection,
-              onSignOut: () async {
-                await FirebaseAuth.instance.signOut();
-                Navigator.pushReplacementNamed(context, '/');
-              },
-              showBackButton: true,
-            ),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
+        );
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: Color(0xFFF2E9E5), // Consistent background color
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Use updated header with consistent positioning
+              AppHeader(
+                selectedIndex: 1, // Courses tab
+                pageIndex: 1,
+                onTabSelected: _handleTabSelection,
+                onSignOut: () async {
+                  await FirebaseAuth.instance.signOut();
+                  Navigator.pushReplacementNamed(context, '/');
+                },
+                showBackButton: true,
+              ),
 
-            // Main content
-            Expanded(
-              child:
-                  _isLoading
-                      ? Center(child: CircularProgressIndicator())
-                      : _userCourses.isEmpty
-                      ? _buildEmptyCourses()
-                      : _buildCoursesList(),
-            ),
-          ],
+              // Main content
+              Expanded(
+                child:
+                    _isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : _userCourses.isEmpty
+                        ? _buildEmptyCourses()
+                        : _buildCoursesList(),
+              ),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _addNewCourse,
+          backgroundColor: Colors.deepOrange,
+          child: Icon(Icons.add),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addNewCourse,
-        backgroundColor: Colors.deepPurple,
-        child: Icon(Icons.add),
+    );
+  }
+
+  // Generic method to create consistent page container
+  Widget buildPageContainer({
+    required BuildContext context,
+    required Widget child,
+    int selectedIndex = 0,
+    bool showBackButton = false,
+  }) {
+    return Scaffold(
+      backgroundColor: Color(0xFF2E2E2E),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Center(
+            child: Container(
+              width: constraints.maxWidth * 0.95,
+              height: constraints.maxHeight * 0.95,
+              decoration: BoxDecoration(
+                color: Color(0xFFF2E9E5),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                children: [
+                  AppHeader(
+                    selectedIndex: selectedIndex,
+                    onTabSelected: (index) {
+                      if (index != selectedIndex) {
+                        Navigator.pop(context);
+                        switch (index) {
+                          case 0:
+                            Navigator.pushReplacementNamed(context, '/');
+                            break;
+                          case 1:
+                            Navigator.pushReplacementNamed(context, '/courses');
+                            break;
+                          case 2:
+                            Navigator.pushReplacementNamed(context, '/notes');
+                            break;
+                          case 3:
+                            Navigator.pushReplacementNamed(context, '/shared');
+                            break;
+                        }
+                      }
+                    },
+                    onSignOut: () async {
+                      await FirebaseAuth.instance.signOut();
+                      Navigator.pushReplacementNamed(context, '/');
+                    },
+                    pageIndex: selectedIndex,
+                    showBackButton: showBackButton,
+                  ),
+                  Expanded(child: child),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

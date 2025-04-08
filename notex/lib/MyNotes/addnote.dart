@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'package:notex/services/notemgn.dart';
+import 'package:notex/widgets/loading.dart';
 
 class AddNotePage extends StatefulWidget {
   final String? preselectedCourseId;
@@ -125,98 +127,33 @@ class _AddNotePageState extends State<AddNotePage> {
       });
 
       try {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null) return;
+        final noteService = NoteService();
+        final result = await noteService.uploadNote(
+          title: _titleController.text.trim(),
+          courseId: _selectedCourseId!,
+          file: _selectedFile!,
+          isPublic: _isPublic,
+          tags: _tags,
+        );
 
-        // Generate a unique file name
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final fileName = '${currentUser.uid}_$timestamp.pdf';
-
-        // Create a reference to the file location
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('notes')
-            .child(_selectedCourseId!)
-            .child(fileName);
-
-        // Upload file with progress tracking
-        final uploadTask = storageRef.putFile(_selectedFile!);
-
-        uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-          setState(() {
-            _uploadProgress = snapshot.bytesTransferred / snapshot.totalBytes;
-          });
-        });
-
-        // Wait for upload to complete
-        await uploadTask;
-
-        // Get download URL
-        final downloadUrl = await storageRef.getDownloadURL();
-
-        // Prepare search terms
-        final searchTerms = [
-          _titleController.text.trim().toLowerCase(),
-          ..._tags.map((tag) => tag.toLowerCase()),
-        ];
-
-        // Save note metadata to Firestore
-        final noteRef = await FirebaseFirestore.instance
-            .collection('notes')
-            .add({
-              'title': _titleController.text.trim(),
-              'courseId': _selectedCourseId,
-              'ownerEmail': currentUser.email,
-              'fileUrl': downloadUrl,
-              'fileName': _selectedFileName,
-              'uploadDate': FieldValue.serverTimestamp(),
-              'isPublic': _isPublic,
-              'downloads': 0,
-              'averageRating': 0.0,
-              'tags': _tags,
-              'searchTerms': searchTerms,
-            });
-
-        // Update course note count
-        await FirebaseFirestore.instance
-            .collection('courses')
-            .doc(_selectedCourseId)
-            .update({'noteCount': FieldValue.increment(1)});
-
-        // Check for note requests
-        final noteRequestsQuery =
-            await FirebaseFirestore.instance
-                .collection('note_requests')
-                .where('courseId', isEqualTo: _selectedCourseId)
-                .where('title', isEqualTo: _titleController.text.trim())
-                .get();
-
-        for (var requestDoc in noteRequestsQuery.docs) {
-          final requestedBy = requestDoc.data()['requestedBy'] as String;
-          await FirebaseFirestore.instance.collection('notifications').add({
-            'userEmail': requestedBy,
-            'message':
-                'The note "${_titleController.text.trim()}" for your requested course is now available!',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-
-          // Delete the request after fulfilling it
-          await requestDoc.reference.delete();
+        if (result.isSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Note uploaded successfully!')),
+          );
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: ${result.error}')));
         }
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Note uploaded successfully!')));
-
-        Navigator.pop(context);
       } catch (error) {
-        setState(() {
-          _isUploading = false;
-        });
-
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error uploading note: $error')));
+      } finally {
+        setState(() {
+          _isUploading = false;
+        });
       }
     }
   }
@@ -429,7 +366,8 @@ class _AddNotePageState extends State<AddNotePage> {
                       SizedBox(
                         width: double.infinity,
                         height: 50,
-                        child: ElevatedButton(
+                        child: LoadingButton(
+                          isLoading: _isUploading,
                           onPressed: _uploadNote,
                           child: Text(
                             'Upload Note',
@@ -438,13 +376,8 @@ class _AddNotePageState extends State<AddNotePage> {
                               fontFamily: 'Poppins',
                             ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                          backgroundColor: Colors.deepPurple,
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ],

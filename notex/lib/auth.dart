@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:notex/firebase_service.dart';
 import 'package:notex/homepage.dart';
 import 'package:notex/services/auth_service.dart';
+import 'package:notex/utils/error.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthPage extends StatefulWidget {
@@ -262,20 +263,7 @@ class _AuthPageState extends State<AuthPage>
   }
 
   void _showError(String message) {
-    showDialog(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: Text('Error'),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('OK'),
-              ),
-            ],
-          ),
-    );
+    ErrorHandler.showError(context, message);
   }
 
   Widget _buildTextField({
