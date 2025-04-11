@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 import 'package:notex/homepage.dart';
 import 'package:notex/services/keyboard_util.dart';
+import 'package:notex/widgets/profile.dart';
 
 class AppHeader extends StatefulWidget {
   final int selectedIndex;
@@ -135,6 +136,89 @@ class _AppHeaderState extends State<AppHeader> {
     );
   }
 
+  void _showProfileDrawer(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "ProfileDrawer",
+      pageBuilder: (context, animation1, animation2) {
+        return ProfileDrawer(
+          onClose: () {
+            Navigator.of(context).pop();
+          },
+        );
+      },
+      transitionDuration: Duration(milliseconds: 300),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
+
+  Widget _buildTabItem(String title, int index) {
+    final bool isSelected = widget.selectedIndex == index;
+    final bool isHovered = _hoveredIndex == index;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isSmallScreen = screenWidth < 550;
+
+    final String displayText =
+        title == "Shared With Me" && isSmallScreen ? "Shared" : title;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hoveredIndex = index),
+        onExit: (_) => setState(() => _hoveredIndex = -1),
+        child: InkWell(
+          onTap: () => widget.onTabSelected(index),
+          borderRadius: BorderRadius.circular(24),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color:
+                  (!isSmallScreen && (isSelected || isHovered))
+                      ? const Color(0xFFE97451)
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow:
+                  (!isSmallScreen && (isSelected || isHovered))
+                      ? [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ]
+                      : [],
+            ),
+            transform:
+                (!isSmallScreen && (isSelected || isHovered))
+                    ? (Matrix4.identity()..scale(1.05))
+                    : Matrix4.identity(),
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight:
+                    (isSelected || isHovered)
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                color:
+                    (!isSmallScreen && (isSelected || isHovered))
+                        ? Colors.white
+                        : Colors.black87,
+                fontFamily: 'KoPubBatang',
+              ),
+              child: Text(displayText),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -142,8 +226,8 @@ class _AppHeaderState extends State<AppHeader> {
     final bool isLargeScreen = screenWidth >= 900;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 55, vertical: 45),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      margin: const EdgeInsets.symmetric(horizontal: 55, vertical: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -254,7 +338,7 @@ class _AppHeaderState extends State<AppHeader> {
                   ),
                 ),
               GestureDetector(
-                onTap: widget.onProfileMenuTap ?? widget.onSignOut,
+                onTap: () => _showProfileDrawer(context),
                 child: Container(
                   width: 36,
                   height: 36,
@@ -283,70 +367,6 @@ class _AppHeaderState extends State<AppHeader> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTabItem(String title, int index) {
-    final bool isSelected = widget.selectedIndex == index;
-    final bool isHovered = _hoveredIndex == index;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final bool isSmallScreen = screenWidth < 550;
-
-    final String displayText =
-        title == "Shared With Me" && isSmallScreen ? "Shared" : title;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hoveredIndex = index),
-        onExit: (_) => setState(() => _hoveredIndex = -1),
-        child: InkWell(
-          onTap: () => widget.onTabSelected(index),
-          borderRadius: BorderRadius.circular(24),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            decoration: BoxDecoration(
-              color:
-                  (!isSmallScreen && (isSelected || isHovered))
-                      ? const Color(0xFFE97451)
-                      : Colors.transparent,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow:
-                  (!isSmallScreen && (isSelected || isHovered))
-                      ? [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ]
-                      : [],
-            ),
-            transform:
-                (!isSmallScreen && (isSelected || isHovered))
-                    ? (Matrix4.identity()..scale(1.05))
-                    : Matrix4.identity(),
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight:
-                    (isSelected || isHovered)
-                        ? FontWeight.bold
-                        : FontWeight.w600,
-                color:
-                    (!isSmallScreen && (isSelected || isHovered))
-                        ? Colors.white
-                        : Colors.black87,
-                fontFamily: 'KoPubBatang',
-              ),
-              child: Text(displayText),
-            ),
-          ),
-        ),
       ),
     );
   }

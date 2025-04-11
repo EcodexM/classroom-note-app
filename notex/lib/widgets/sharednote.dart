@@ -4,8 +4,8 @@ import 'package:notex/widgets/header.dart';
 import 'package:notex/widgets/courses.dart';
 import 'package:notex/MyNotes/mynote.dart';
 import 'package:notex/services/keyboard_util.dart';
-import 'package:notex/widgets/sharednote.dart';
 import 'package:notex/homepage.dart';
+import 'package:notex/widgets/profile.dart';
 
 class SharedNotesScreen extends StatefulWidget {
   @override
@@ -27,6 +27,58 @@ class _SharedNotesScreenState extends State<SharedNotesScreen> {
     setState(() {
       _isLoading = false;
     });
+  }
+
+  // Add the missing _showProfileDrawer method
+  void _showProfileDrawer(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "ProfileDrawer",
+      pageBuilder: (context, animation1, animation2) {
+        return ProfileDrawer(
+          onClose: () {
+            Navigator.of(context).pop();
+          },
+        );
+      },
+      transitionDuration: Duration(milliseconds: 300),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
+
+  // This method was incomplete/misplaced - removing the existing partial definition
+  void _handleProfileAction(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Profile Options'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.person),
+                  title: Text('View Profile'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    // Navigate to profile screen
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.logout),
+                  title: Text('Sign Out'),
+                  onTap: () async {
+                    await FirebaseAuth.instance.signOut();
+                    Navigator.pushReplacementNamed(context, '/');
+                  },
+                ),
+              ],
+            ),
+          ),
+    );
   }
 
   // Add this method to handle tab selection
@@ -58,32 +110,37 @@ class _SharedNotesScreenState extends State<SharedNotesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final double margin = screenWidth * 0.018;
     return WillPopScope(
       onWillPop: () async {
-        // Custom back navigation logic
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => HomePage()),
         );
-        return false; // Prevent default back button behavior
+        return false;
       },
       child: Scaffold(
-        backgroundColor: Color(0xFFF2E9E5),
-        body: SafeArea(
-          child: Column(
-            children: [
-              AppHeader(
-                selectedIndex: 3,
-                onTabSelected: _handleTabSelection,
-                onSignOut: () async {
-                  await FirebaseAuth.instance.signOut();
-                  Navigator.pushReplacementNamed(context, '/');
-                },
-                pageIndex: 3,
-                showBackButton: true,
-              ),
-              Expanded(child: _buildSharedNotesContent()),
-            ],
+        backgroundColor: Color(0xFF2E2E2E),
+        body: Container(
+          margin: EdgeInsets.all(margin),
+          decoration: BoxDecoration(
+            color: Color(0xFFF2E9E5),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                AppHeader(
+                  selectedIndex: 3,
+                  onTabSelected: _handleTabSelection,
+                  onProfileMenuTap: () => _showProfileDrawer(context),
+                  pageIndex: 3,
+                  showBackButton: true,
+                ),
+                Expanded(child: _buildSharedNotesContent()),
+              ],
+            ),
           ),
         ),
       ),

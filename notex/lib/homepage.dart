@@ -72,13 +72,13 @@ class _HomePageState extends State<HomePage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final bool isSmallScreen = screenWidth < 600;
-
+    final bool isPortrait = screenHeight > screenWidth;
     final double margin = screenWidth * 0.018;
 
     return Scaffold(
       backgroundColor: Color(0xFF2E2E2E),
       body: Container(
-        margin: EdgeInsets.all(margin), // Consistent margin
+        margin: EdgeInsets.all(margin),
         decoration: BoxDecoration(
           color: Color(0xFFF2E9E2),
           borderRadius: BorderRadius.circular(24),
@@ -96,45 +96,82 @@ class _HomePageState extends State<HomePage> {
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: margin * 2, // Consistent horizontal padding
-                    vertical: margin, // Consistent vertical padding
+                    horizontal: margin * 2,
+                    vertical: margin,
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              'CREATE.\nORGANISE.\nEDUCATE.',
-                              style: TextStyle(
-                                fontSize: isSmallScreen ? 40 : 80,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF2E2E2E),
-                                fontFamily: 'Boldonse',
-                                height: 1.5,
+                  child:
+                      isPortrait
+                          ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '  CREATE.\n  ORGANISE.\n  EDUCATE.',
+                                      style: TextStyle(
+                                        fontSize: isSmallScreen ? 40 : 80,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF2E2E2E),
+                                        fontFamily: 'Boldonse',
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment(0.4, 0.55),
-                          child: Text(
-                            'All your notes in one place.',
-                            style: TextStyle(
-                              fontSize: isSmallScreen ? 16 : 32,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2E2E2E),
-                              fontFamily: 'Boldonse',
-                            ),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment(-0.7, 0.2),
+                                  child: Text(
+                                    'All your notes in one place.',
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? 16 : 32,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF2E2E2E),
+                                      fontFamily: 'Boldonse',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                          : Row(
+                            children: [
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment(-1.02, 0.4),
+                                  child: Text(
+                                    'CREATE.\nORGANISE.\nEDUCATE.',
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? 40 : 80,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF2E2E2E),
+                                      fontFamily: 'Boldonse',
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment(0.4, 0.25),
+                                  child: Text(
+                                    'All your notes in one place.',
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? 16 : 32,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF2E2E2E),
+                                      fontFamily: 'Boldonse',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ],
