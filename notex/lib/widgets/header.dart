@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
+import 'package:notex/homepage.dart';
+import 'package:notex/services/keyboard_util.dart';
 
 class AppHeader extends StatefulWidget {
   final int selectedIndex;
@@ -140,8 +142,8 @@ class _AppHeaderState extends State<AppHeader> {
     final bool isLargeScreen = screenWidth >= 900;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 55, vertical: 45),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -155,6 +157,22 @@ class _AppHeaderState extends State<AppHeader> {
       ),
       child: Row(
         children: [
+          if (widget.showBackButton)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: IconButton(
+                icon: Icon(Icons.arrow_back, color: Colors.black87, size: 30),
+                iconSize: 40,
+                padding: EdgeInsets.all(10),
+                constraints: const BoxConstraints(maxWidth: 40),
+                onPressed: () {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => HomePage()),
+                    (route) => false,
+                  );
+                },
+              ),
+            ),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -134,7 +134,7 @@ class _CoursesPageState extends State<CoursesPage> {
               },
               child: Text('Add'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
+                backgroundColor: Colors.deepOrange,
               ),
             ),
           ],
@@ -172,6 +172,8 @@ class _CoursesPageState extends State<CoursesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return WillPopScope(
       onWillPop: () async {
         Navigator.pushReplacement(
@@ -181,38 +183,42 @@ class _CoursesPageState extends State<CoursesPage> {
         return false;
       },
       child: Scaffold(
-        backgroundColor: Color(0xFFF2E9E5), // Consistent background color
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Use updated header with consistent positioning
-              AppHeader(
-                selectedIndex: 1, // Courses tab
-                pageIndex: 1,
-                onTabSelected: _handleTabSelection,
-                onSignOut: () async {
-                  await FirebaseAuth.instance.signOut();
-                  Navigator.pushReplacementNamed(context, '/');
-                },
-                showBackButton: true,
-              ),
-
-              // Main content
-              Expanded(
-                child:
-                    _isLoading
-                        ? Center(child: CircularProgressIndicator())
-                        : _userCourses.isEmpty
-                        ? _buildEmptyCourses()
-                        : _buildCoursesList(),
-              ),
-            ],
+        backgroundColor: Color(0xFF2E2E2E), // Dark background for margin
+        body: Container(
+          margin: EdgeInsets.all(
+            screenWidth * 0.018,
+          ), // Dynamic margin calculation
+          decoration: BoxDecoration(
+            color: Color(0xFFF2E9E5), // Consistent background color
+            borderRadius: BorderRadius.circular(24),
           ),
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _addNewCourse,
-          backgroundColor: Colors.deepOrange,
-          child: Icon(Icons.add),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Use updated header with consistent positioning
+                AppHeader(
+                  selectedIndex: 1, // Courses tab
+                  pageIndex: 1,
+                  onTabSelected: _handleTabSelection,
+                  onSignOut: () async {
+                    await FirebaseAuth.instance.signOut();
+                    Navigator.pushReplacementNamed(context, '/');
+                  },
+                  showBackButton: true,
+                ),
+
+                // Main content
+                Expanded(
+                  child:
+                      _isLoading
+                          ? Center(child: CircularProgressIndicator())
+                          : _userCourses.isEmpty
+                          ? _buildEmptyCourses()
+                          : _buildCoursesList(),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -303,7 +309,7 @@ class _CoursesPageState extends State<CoursesPage> {
             label: Text('Add Course'),
             onPressed: _addNewCourse,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: Colors.lightGreen,
               foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),

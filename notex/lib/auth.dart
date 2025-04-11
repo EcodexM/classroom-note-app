@@ -614,7 +614,6 @@ class _AuthPageState extends State<AuthPage>
               child: Text(
                 'Register',
                 style: TextStyle(
-                  color: Colors.deepOrange,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'KoPubBatang',
                 ),

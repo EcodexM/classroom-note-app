@@ -298,7 +298,7 @@ class _MyNotesPageState extends State<MyNotesPage> {
                 onTabSelected: _handleTabSelection,
                 onProfileMenuTap: _handleProfileAction,
                 pageIndex: 2,
-                showBackButton: false, // No back button on main screens
+                showBackButton: true, // Back button is now enabled
               ),
 
               // Search bar with consistent styling
