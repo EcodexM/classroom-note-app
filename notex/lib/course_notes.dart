@@ -8,7 +8,6 @@ import 'package:notex/models/course.dart';
 import 'package:notex/models/note.dart';
 import 'package:notex/services/offline_service.dart';
 import 'package:intl/intl.dart';
-
 import 'MyNotes/mynote.dart';
 import 'MyNotes/mynote.dart' as addnote;
 

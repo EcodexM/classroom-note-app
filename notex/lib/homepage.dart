@@ -73,7 +73,7 @@ class _HomePageState extends State<HomePage> {
     final screenHeight = MediaQuery.of(context).size.height;
     final bool isSmallScreen = screenWidth < 600;
 
-    final double margin = screenWidth * 0.025;
+    final double margin = screenWidth * 0.018;
 
     return Scaffold(
       backgroundColor: Color(0xFF2E2E2E),
@@ -104,7 +104,7 @@ class _HomePageState extends State<HomePage> {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             Text(
                               'CREATE.\nORGANISE.\nEDUCATE.',
@@ -121,7 +121,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       Expanded(
                         child: Align(
-                          alignment: Alignment.centerRight,
+                          alignment: Alignment(0.4, 0.55),
                           child: Text(
                             'All your notes in one place.',
                             style: TextStyle(
