@@ -637,7 +637,7 @@ class _MyNotesPageState extends State<MyNotesPage>
                       SizedBox(width: 8),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.deepPurple,
+                          color: Colors.deepOrange,
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
@@ -1122,7 +1122,7 @@ class _MyNotesPageState extends State<MyNotesPage>
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
+              fontFamily: 'porterssans',
             ),
           ),
           Spacer(),

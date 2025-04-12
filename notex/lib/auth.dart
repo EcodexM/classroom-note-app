@@ -26,7 +26,7 @@ class _AuthPageState extends State<AuthPage>
 
   bool isLoading = false;
   bool rememberMe = false;
-  bool isLogin = true; // Controls which form is showing
+  bool isLogin = true;
   bool isAdminLogin = false;
 
   late AnimationController _animationController;
@@ -36,12 +36,10 @@ class _AuthPageState extends State<AuthPage>
   @override
   void initState() {
     super.initState();
-
     _animationController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 600),
     );
-
     _opacityAnimation = Tween<double>(begin: 1, end: 0).animate(
       CurvedAnimation(
         parent: _animationController,
@@ -49,7 +47,6 @@ class _AuthPageState extends State<AuthPage>
         reverseCurve: Interval(0.5, 1.0, curve: Curves.easeIn),
       ),
     );
-
     _slideAnimation = Tween<Offset>(
       begin: Offset.zero,
       end: Offset(1.5, 0),
@@ -64,7 +61,6 @@ class _AuthPageState extends State<AuthPage>
     _passwordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
     _loginButtonFocusNode.dispose();
-
     _animationController.dispose();
     emailController.dispose();
     passwordController.dispose();
@@ -80,22 +76,31 @@ class _AuthPageState extends State<AuthPage>
     }
   }
 
-  // Toggle between login and register forms with animation
   void _toggleForm() async {
     if (isLogin) {
-      // Switching to register
       await _animationController.forward();
       setState(() {
         isLogin = false;
       });
       await _animationController.reverse();
     } else {
-      // Switching to login
       await _animationController.forward();
       setState(() {
         isLogin = true;
       });
       await _animationController.reverse();
+    }
+  }
+
+  Future<void> ensureUserDocument(User user, String role) async {
+    final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      await docRef.set({
+        'email': user.email,
+        'displayName': user.displayName ?? user.email?.split('@')[0],
+        'role': role,
+      });
     }
   }
 
@@ -117,19 +122,10 @@ class _AuthPageState extends State<AuthPage>
       final user = userCredential.user;
 
       if (user != null) {
-        // Determine the role based on the admin toggle
         final role = isAdminLogin ? 'admin' : 'student';
 
-        // Add user to Firestore with the correct role
-        await FirebaseService.addUser(
-          userId: user.uid,
-          email: user.email ?? '',
-          displayName: user.email?.split('@').first,
-          profileImage: user.photoURL,
-          role: role,
-        );
+        await ensureUserDocument(user, role);
 
-        // Navigate to home page
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => HomePage()),
@@ -153,38 +149,31 @@ class _AuthPageState extends State<AuthPage>
       final user = userCredential.user;
 
       if (user != null) {
-        // Retrieve the user's role from Firestore
         final userDoc =
             await FirebaseFirestore.instance
                 .collection('users')
                 .doc(user.uid)
                 .get();
-
         final String userRole = userDoc.data()?['role'] ?? 'student';
 
-        // Check if the login type matches the user's role
         if (isAdminLogin && userRole != 'admin') {
-          // Attempting admin login with a non-admin account
           await FirebaseAuth.instance.signOut();
           _showError(
             'This account is not authorized for administrator access.',
           );
           return;
         } else if (!isAdminLogin && userRole != 'student') {
-          // Attempting student login with a non-student account
           await FirebaseAuth.instance.signOut();
           _showError('This account is not authorized for student access.');
           return;
         }
 
-        // Successful login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => HomePage()),
         );
       }
     } on FirebaseAuthException catch (e) {
-      // Handle authentication errors
       String errorMessage;
       switch (e.code) {
         case 'user-not-found':
@@ -208,24 +197,19 @@ class _AuthPageState extends State<AuthPage>
   }
 
   Future<void> register(String role) async {
-    // Existing password validation...
+    if (passwordController.text != confirmPasswordController.text) {
+      _showError('Passwords do not match');
+      return;
+    }
+    if (passwordController.text.length < 6) {
+      _showError('Password must be at least 6 characters long');
+      return;
+    }
 
     setState(() => isLoading = true);
 
     try {
       final authService = AuthService();
-
-      // Debug: Check existing users before registration
-      final existingUsersQuery =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .where('email', isEqualTo: emailController.text.trim())
-              .get();
-
-      print('Existing users in Firestore: ${existingUsersQuery.docs.length}');
-      existingUsersQuery.docs.forEach((doc) {
-        print('Existing user document data: ${doc.data()}');
-      });
 
       final userCredential = await authService.registerUser(
         email: emailController.text.trim(),
@@ -235,14 +219,14 @@ class _AuthPageState extends State<AuthPage>
 
       final user = userCredential?.user;
       if (user != null) {
+        await ensureUserDocument(user, role);
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => HomePage()),
         );
       }
     } on FirebaseAuthException catch (e) {
-      print('Firebase Auth Exception: ${e.code} - ${e.message}');
-
       String errorMessage;
       switch (e.code) {
         case 'email-already-in-use':
@@ -255,7 +239,6 @@ class _AuthPageState extends State<AuthPage>
       }
       _showError(errorMessage);
     } catch (e) {
-      print('Unexpected registration error: $e');
       _showError('An unexpected error occurred: ${e.toString()}');
     } finally {
       setState(() => isLoading = false);

@@ -11,8 +11,7 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Use environment variable to store the Firebase API key
-  final String _firebaseApiKey =
-      dotenv.env['FIREBASE_API_KEY'] ?? firebaseOptions.apiKey;
+  final String _firebaseApiKey = dotenv.env['FIREBASE_API_KEY'] ?? '';
 
   /// Sign in with Google via REST (for platforms like Windows desktop)
   Future<UserCredential?> signInWithGoogleAccessToken(
@@ -69,8 +68,10 @@ class AuthService {
       print("User document exists, updating lastLogin");
       await docRef.update({
         'lastLogin': timestamp,
-        // Only update role if it's different
-        if (docSnap.data()?['role'] != role) 'role': role,
+        // Only update role if it's different and admin isn't being downgraded
+        if (docSnap.data()?['role'] != role &&
+            docSnap.data()?['role'] != 'admin')
+          'role': role,
       });
     } else {
       // If document doesn't exist, create it with full user data
@@ -140,8 +141,8 @@ class AuthService {
         print("Account doesn't exist, proceeding with registration");
       }
 
-      // Validate role before creating account
-      final validRoles = ['student', 'admin', 'teacher'];
+      // Validate role before creating account (only student or admin allowed)
+      final validRoles = ['student', 'admin'];
       final normalizedRole = validRoles.contains(role) ? role : 'student';
       print("Using normalized role: $normalizedRole");
 
@@ -195,11 +196,6 @@ class AuthService {
     return _isCurrentUserRole('admin');
   }
 
-  /// Check if current user is teacher
-  Future<bool> isCurrentUserTeacher() async {
-    return _isCurrentUserRole('teacher');
-  }
-
   /// Generic role check
   Future<bool> _isCurrentUserRole(String role) async {
     final currentUser = _auth.currentUser;
@@ -224,6 +220,21 @@ class AuthService {
       (r) => r.toString().split('.').last == roleStr,
       orElse: () => UserRole.student,
     );
+  }
+
+  Future<void> ensureUserDocument(User user) async {
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+    if (!doc.exists) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'email': user.email,
+        'displayName': user.displayName ?? user.email?.split('@')[0],
+        'role': 'student', // change if needed
+      });
+    }
   }
 
   /// Set user role manually (admin use)

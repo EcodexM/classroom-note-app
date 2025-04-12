@@ -13,7 +13,7 @@ void main() async {
     print('Error loading keys.env file: $e');
   }
   // Initialize Firebase with the correct options
-  await Firebase.initializeApp(options: firebaseOptions);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Initialize offline service
   final offlineService = OfflineService();
