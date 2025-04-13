@@ -208,7 +208,9 @@ class _AppHeaderState extends State<AppHeader> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildTabItem("Courses", 1),
+                    SizedBox(width: 20),
                     _buildTabItem("Notes", 2),
+                    SizedBox(width: 20),
                     _buildTabItem("Shared With Me", 3),
                   ],
                 ),

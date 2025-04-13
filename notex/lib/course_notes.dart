@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:notex/MyNotes/addnote.dart';
-import 'package:notex/MyNotes/addnote.dart' as addnote;
 import 'package:notex/MyNotes/pdfViewer.dart';
-import 'package:notex/models/course.dart';
 import 'package:notex/models/note.dart';
 import 'package:notex/services/offline_service.dart';
 import 'package:intl/intl.dart';
-import 'MyNotes/mynote.dart';
-import 'MyNotes/mynote.dart' as addnote;
 
 class CourseNotesPage extends StatefulWidget {
   final String courseId;
@@ -30,9 +26,23 @@ class _CourseNotesPageState extends State<CourseNotesPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
-  List<Note> _publicNotes = [];
-  List<Note> _myNotes = [];
+  List<Map<String, dynamic>> _userNotes = [];
+  List<Map<String, dynamic>> _instructorNotes = [];
   String _searchQuery = '';
+
+  // Accent colors for note cards
+  final List<Color> _accentColors = [
+    Color(0xFFFF9E80), // Deep Orange accent
+    Color(0xFFFF80AB), // Pink accent
+    Color(0xFFEA80FC), // Purple accent
+    Color(0xFFB388FF), // Deep Purple accent
+    Color(0xFF8C9EFF), // Indigo accent
+    Color(0xFF82B1FF), // Blue accent
+    Color(0xFF80D8FF), // Light Blue accent
+    Color(0xFF84FFFF), // Cyan accent
+    Color(0xFFA7FFEB), // Teal accent
+    Color(0xFFB9F6CA), // Green accent
+  ];
 
   @override
   void initState() {
@@ -56,22 +66,8 @@ class _CourseNotesPageState extends State<CourseNotesPage>
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;
 
-      // Load public notes for this course
-      final publicNotesQuery =
-          await FirebaseFirestore.instance
-              .collection('notes')
-              .where('courseId', isEqualTo: widget.courseId)
-              .where('isPublic', isEqualTo: true)
-              .orderBy('uploadDate', descending: true)
-              .get();
-
-      final publicNotes =
-          publicNotesQuery.docs
-              .map((doc) => Note.fromFirestore(doc.data(), doc.id))
-              .toList();
-
       // Load user's notes for this course
-      final myNotesQuery =
+      final userNotesQuery =
           await FirebaseFirestore.instance
               .collection('notes')
               .where('courseId', isEqualTo: widget.courseId)
@@ -79,14 +75,67 @@ class _CourseNotesPageState extends State<CourseNotesPage>
               .orderBy('uploadDate', descending: true)
               .get();
 
-      final myNotes =
-          myNotesQuery.docs
-              .map((doc) => Note.fromFirestore(doc.data(), doc.id))
-              .toList();
+      // Load instructor/admin notes for this course (public notes not made by the current user)
+      final instructorNotesQuery =
+          await FirebaseFirestore.instance
+              .collection('notes')
+              .where('courseId', isEqualTo: widget.courseId)
+              .where('isPublic', isEqualTo: true)
+              .orderBy('uploadDate', descending: true)
+              .get();
+
+      // Process user notes
+      List<Map<String, dynamic>> userNotes = [];
+      for (var doc in userNotesQuery.docs) {
+        final data = doc.data();
+        final randomAccentColor =
+            _accentColors[doc.id.hashCode % _accentColors.length];
+
+        userNotes.add({
+          'id': doc.id,
+          'title': data['title'] ?? 'Untitled Note',
+          'courseId': data['courseId'] ?? '',
+          'ownerEmail': data['ownerEmail'] ?? '',
+          'fileUrl': data['fileUrl'] ?? '',
+          'fileName': data['fileName'] ?? '',
+          'uploadDate': data['uploadDate']?.toDate() ?? DateTime.now(),
+          'isPublic': data['isPublic'] ?? false,
+          'downloads': data['downloads'] ?? 0,
+          'averageRating': data['averageRating'] ?? 0.0,
+          'tags': List<String>.from(data['tags'] ?? []),
+          'accentColor': randomAccentColor,
+        });
+      }
+
+      // Process instructor notes
+      List<Map<String, dynamic>> instructorNotes = [];
+      for (var doc in instructorNotesQuery.docs) {
+        // Skip user's own notes in the instructor tab
+        if (doc.data()['ownerEmail'] == currentUser.email) continue;
+
+        final data = doc.data();
+        final randomAccentColor =
+            _accentColors[doc.id.hashCode % _accentColors.length];
+
+        instructorNotes.add({
+          'id': doc.id,
+          'title': data['title'] ?? 'Untitled Note',
+          'courseId': data['courseId'] ?? '',
+          'ownerEmail': data['ownerEmail'] ?? '',
+          'fileUrl': data['fileUrl'] ?? '',
+          'fileName': data['fileName'] ?? '',
+          'uploadDate': data['uploadDate']?.toDate() ?? DateTime.now(),
+          'isPublic': data['isPublic'] ?? false,
+          'downloads': data['downloads'] ?? 0,
+          'averageRating': data['averageRating'] ?? 0.0,
+          'tags': List<String>.from(data['tags'] ?? []),
+          'accentColor': randomAccentColor,
+        });
+      }
 
       setState(() {
-        _publicNotes = publicNotes;
-        _myNotes = myNotes;
+        _userNotes = userNotes;
+        _instructorNotes = instructorNotes;
         _isLoading = false;
       });
     } catch (error) {
@@ -103,18 +152,21 @@ class _CourseNotesPageState extends State<CourseNotesPage>
     });
   }
 
-  List<Note> _getFilteredNotes(List<Note> notes) {
+  List<Map<String, dynamic>> _getFilteredNotes(
+    List<Map<String, dynamic>> notes,
+  ) {
     if (_searchQuery.isEmpty) return notes;
 
     return notes.where((note) {
-      return note.title.toLowerCase().contains(_searchQuery) ||
-          note.tags.any((tag) => tag.toLowerCase().contains(_searchQuery));
+      return note['title'].toLowerCase().contains(_searchQuery) ||
+          note['ownerEmail'].toLowerCase().contains(_searchQuery) ||
+          note['tags'].any((tag) => tag.toLowerCase().contains(_searchQuery));
     }).toList();
   }
 
-  Future<void> _makeNoteAvailableOffline(Note note) async {
+  Future<void> _makeNoteAvailableOffline(Map<String, dynamic> note) async {
     final offlineService = OfflineService();
-    final isAvailable = await offlineService.isNoteAvailableOffline(note.id);
+    final isAvailable = await offlineService.isNoteAvailableOffline(note['id']);
 
     if (isAvailable) {
       // Already available offline
@@ -142,10 +194,25 @@ class _CourseNotesPageState extends State<CourseNotesPage>
           ),
     );
 
-    final success = await offlineService.saveNoteForOffline(note);
+    // Create Note model from the map
+    final noteModel = Note(
+      id: note['id'],
+      title: note['title'],
+      courseId: note['courseId'],
+      ownerEmail: note['ownerEmail'],
+      fileUrl: note['fileUrl'],
+      fileName: note['fileName'],
+      uploadDate: note['uploadDate'],
+      isPublic: note['isPublic'],
+      downloads: note['downloads'],
+      averageRating: note['averageRating'],
+      tags: List<String>.from(note['tags']),
+    );
+
+    final success = await offlineService.saveNoteForOffline(noteModel);
 
     // Close dialog
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
 
     if (success) {
       ScaffoldMessenger.of(
@@ -158,116 +225,13 @@ class _CourseNotesPageState extends State<CourseNotesPage>
     }
   }
 
-  Future<void> _rateNote(Note note, double rating) async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
-      // Add or update user rating
-      await FirebaseFirestore.instance
-          .collection('notes')
-          .doc(note.id)
-          .collection('ratings')
-          .doc(currentUser.uid)
-          .set({
-            'rating': rating,
-            'userEmail': currentUser.email,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
-
-      // Calculate new average rating
-      final ratingsQuery =
-          await FirebaseFirestore.instance
-              .collection('notes')
-              .doc(note.id)
-              .collection('ratings')
-              .get();
-
-      double sum = 0;
-      int count = ratingsQuery.docs.length;
-
-      for (var doc in ratingsQuery.docs) {
-        sum += (doc.data()['rating'] as num).toDouble();
-      }
-
-      double newAverage = count > 0 ? sum / count : 0;
-
-      // Update average rating in note document
-      await FirebaseFirestore.instance.collection('notes').doc(note.id).update({
-        'averageRating': newAverage,
-      });
-
-      // Refresh notes
-      _loadNotes();
-    } catch (error) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error rating note: $error')));
-    }
-  }
-
-  Future<void> _downloadNote(Note note) async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
-      // Increment downloads
-      await FirebaseFirestore.instance.collection('notes').doc(note.id).update({
-        'downloads': FieldValue.increment(1),
-      });
-
-      // Track download in a separate collection
-      await FirebaseFirestore.instance.collection('downloads').add({
-        'userEmail': currentUser.email,
-        'noteId': note.id,
-        'downloadedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Navigate to PDF viewer
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => PDFViewerPage(
-                pdfUrl: note.fileUrl,
-                noteTitle: note.title,
-                isPublic: note.isPublic,
-                noteId: note.id,
-                courseId: widget.courseId,
-                courseCode: widget.courseCode,
-              ),
-        ),
-      );
-
-      // Refresh notes
-      _loadNotes();
-    } catch (error) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error downloading note: $error')));
-    }
-  }
-
-  Future<void> _requestNote() async {
-    final titleController = TextEditingController();
-
+  void _requestNoteAccess(Map<String, dynamic> note) {
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Request a Note'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    labelText: 'Note Title',
-                    hintText: 'e.g. Lecture 1 Notes',
-                  ),
-                ),
-              ],
-            ),
+            title: Text('Request Note Access'),
+            content: Text('Do you want to request access to this note?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -275,41 +239,31 @@ class _CourseNotesPageState extends State<CourseNotesPage>
               ),
               ElevatedButton(
                 onPressed: () async {
-                  final title = titleController.text.trim();
-                  if (title.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Please enter a title')),
-                    );
-                    return;
-                  }
-
+                  // Implement access request logic
                   try {
-                    final currentUser = FirebaseAuth.instance.currentUser;
-                    if (currentUser == null) return;
-
                     await FirebaseFirestore.instance
                         .collection('note_requests')
                         .add({
-                          'courseId': widget.courseId,
-                          'title': title,
-                          'requestedBy': currentUser.email,
-                          'createdAt': FieldValue.serverTimestamp(),
+                          'noteId': note['id'],
+                          'requesterEmail':
+                              FirebaseAuth.instance.currentUser?.email,
+                          'ownerEmail': note['ownerEmail'],
+                          'status': 'pending',
+                          'requestedAt': FieldValue.serverTimestamp(),
                         });
-
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Note request submitted!')),
+                      SnackBar(content: Text('Access request sent!')),
                     );
-                  } catch (error) {
+                  } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error requesting note: $error')),
+                      SnackBar(content: Text('Failed to send request')),
                     );
                   }
                 },
                 child: Text('Request'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
-                  foregroundColor: Colors.white,
                 ),
               ),
             ],
@@ -317,96 +271,12 @@ class _CourseNotesPageState extends State<CourseNotesPage>
     );
   }
 
-  Future<void> _viewNoteRequests() async {
-    try {
-      final requestsQuery =
-          await FirebaseFirestore.instance
-              .collection('note_requests')
-              .where('courseId', isEqualTo: widget.courseId)
-              .orderBy('createdAt', descending: true)
-              .get();
-
-      List<Map<String, dynamic>> requests = [];
-      for (var doc in requestsQuery.docs) {
-        requests.add({
-          'id': doc.id,
-          'title': doc.data()['title'] ?? 'Untitled',
-          'requestedBy': doc.data()['requestedBy'] ?? 'Unknown',
-          'createdAt': doc.data()['createdAt']?.toDate() ?? DateTime.now(),
-        });
-      }
-
-      if (requests.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No note requests for this course')),
-        );
-        return;
-      }
-
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: Text('Note Requests'),
-              content: Container(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: requests.length,
-                  itemBuilder: (context, index) {
-                    final request = requests[index];
-                    return ListTile(
-                      title: Text(request['title']),
-                      subtitle: Text('By: ${request['requestedBy']}'),
-                      trailing: Text(
-                        DateFormat('MM/dd/yy').format(request['createdAt']),
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => addnote.AddNotePage(
-                                  preselectedCourseId: widget.courseId,
-                                  initialTitle: request['title'],
-                                ),
-                          ),
-                        ).then((_) {
-                          _loadNotes();
-                          // Delete the request after fulfilling
-                          FirebaseFirestore.instance
-                              .collection('note_requests')
-                              .doc(request['id'])
-                              .delete();
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Close'),
-                ),
-              ],
-            ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading note requests: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${widget.courseCode} - Notes',
+          '${widget.courseCode} - ${widget.courseName}',
           style: TextStyle(fontFamily: 'Poppins'),
         ),
         backgroundColor: Colors.deepPurple,
@@ -414,8 +284,8 @@ class _CourseNotesPageState extends State<CourseNotesPage>
           controller: _tabController,
           indicatorColor: Colors.white,
           tabs: [
-            Tab(icon: Icon(Icons.public), text: 'Public Notes'),
             Tab(icon: Icon(Icons.person), text: 'My Notes'),
+            Tab(icon: Icon(Icons.school), text: 'Instructor Notes'),
           ],
         ),
       ),
@@ -439,57 +309,37 @@ class _CourseNotesPageState extends State<CourseNotesPage>
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Public Notes Tab
-                _buildNotesTab(_getFilteredNotes(_publicNotes)),
-
                 // My Notes Tab
-                _buildNotesTab(_getFilteredNotes(_myNotes)),
+                _buildNotesGrid(_getFilteredNotes(_userNotes)),
+
+                // Instructor Notes Tab
+                _buildNotesGrid(_getFilteredNotes(_instructorNotes)),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            onPressed: _viewNoteRequests,
-            backgroundColor: Colors.amber,
-            heroTag: 'viewRequests',
-            child: Icon(Icons.list_alt, color: Colors.white),
-            mini: true,
-          ),
-          SizedBox(height: 8),
-          FloatingActionButton(
-            onPressed: _requestNote,
-            backgroundColor: Colors.deepPurple,
-            heroTag: 'requestNote',
-            child: Icon(Icons.notification_add, color: Colors.white),
-          ),
-          SizedBox(height: 8),
-          FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => addnote.AddNotePage(
-                        preselectedCourseId: widget.courseId,
-                        initialTitle: null,
-                      ),
-                ),
-              ).then((_) => _loadNotes());
-            },
-            backgroundColor: Colors.deepPurple,
-            heroTag: 'addNote',
-            child: Icon(Icons.add, color: Colors.white),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Navigate to add note page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => AddNotePage(
+                    preselectedCourseId: widget.courseId,
+                    initialTitle: null,
+                  ),
+            ),
+          ).then((_) => _loadNotes());
+        },
+        backgroundColor: Colors.deepPurple,
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildNotesTab(List<Note> notes) {
+  Widget _buildNotesGrid(List<Map<String, dynamic>> notes) {
     if (_isLoading) {
       return Center(child: CircularProgressIndicator());
     }
@@ -499,149 +349,157 @@ class _CourseNotesPageState extends State<CourseNotesPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.notes, size: 64, color: Colors.grey),
+            Icon(Icons.note_alt_outlined, size: 64, color: Colors.grey[300]),
             SizedBox(height: 16),
             Text(
               'No notes found',
-              style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+                fontFamily: 'Poppins',
+              ),
             ),
             SizedBox(height: 8),
             Text(
-              'Tap the + button to add a note',
-              style: TextStyle(color: Colors.grey[600], fontFamily: 'Poppins'),
+              'Add your first note using the + button',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+                fontFamily: 'Poppins',
+              ),
             ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      itemCount: notes.length,
-      padding: EdgeInsets.all(8),
-      itemBuilder: (context, index) {
-        final note = notes[index];
-        return Card(
-          margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            title: Text(
-              note.title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'By: ${note.ownerEmail}',
-                  style: TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+    return Padding(
+      padding: EdgeInsets.all(16),
+      child: GridView.builder(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2, // Two notes per row
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 0.8, // Adjust based on your design
+        ),
+        itemCount: notes.length,
+        itemBuilder: (context, index) {
+          final note = notes[index];
+          return _buildNoteCard(note);
+        },
+      ),
+    );
+  }
+
+  Widget _buildNoteCard(Map<String, dynamic> note) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to PDF viewer
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => PDFViewerPage(
+                  pdfUrl: note['fileUrl'],
+                  noteTitle: note['title'],
+                  noteId: note['id'],
+                  courseId: note['courseId'],
+                  courseCode: widget.courseCode,
+                  isPublic: note['isPublic'],
                 ),
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.star, size: 16, color: Colors.amber),
-                    SizedBox(width: 4),
-                    Text(
-                      note.averageRating.toStringAsFixed(1),
-                      style: TextStyle(fontSize: 12, fontFamily: 'Poppins'),
-                    ),
-                    SizedBox(width: 8),
-                    IconButton(
-                      icon: Icon(Icons.star_border, size: 16),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder:
-                              (context) => AlertDialog(
-                                title: Text('Rate this Note'),
-                                content: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: List.generate(5, (index) {
-                                    return IconButton(
-                                      icon: Icon(
-                                        Icons.star,
-                                        color: Colors.amber,
-                                        size: 32,
-                                      ),
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                        _rateNote(note, (index + 1).toDouble());
-                                      },
-                                    );
-                                  }),
-                                ),
-                              ),
-                        );
-                      },
-                    ),
-                    Spacer(),
-                    Icon(Icons.download, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 4),
-                    Text(
-                      '${note.downloads}',
-                      style: TextStyle(fontSize: 12, fontFamily: 'Poppins'),
-                    ),
-                  ],
-                ),
-                if (note.tags.isNotEmpty) ...[
-                  SizedBox(height: 4),
-                  Wrap(
-                    spacing: 4,
-                    children:
-                        note.tags.map((tag) {
-                          return Chip(
-                            label: Text(
-                              tag,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            padding: EdgeInsets.zero,
-                            labelPadding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 0,
-                            ),
-                            backgroundColor: Colors.grey[200],
-                          );
-                        }).toList(),
-                  ),
-                ],
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FutureBuilder<bool>(
-                  future: OfflineService().isNoteAvailableOffline(note.id),
-                  builder: (context, snapshot) {
-                    final isAvailable = snapshot.data ?? false;
-                    return IconButton(
-                      icon: Icon(
-                        isAvailable ? Icons.offline_pin : Icons.offline_bolt,
-                        color: isAvailable ? Colors.green : Colors.grey,
-                      ),
-                      onPressed: () => _makeNoteAvailableOffline(note),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.download, color: Colors.deepPurple),
-                  onPressed: () => _downloadNote(note),
-                ),
-              ],
-            ),
-            onTap: () => _downloadNote(note),
           ),
         );
       },
+      child: Container(
+        decoration: BoxDecoration(
+          color: note['accentColor'], // The accent color from the note
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Heading area
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text(
+                note['title'],
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+            // Content area
+            Expanded(
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'By: ${note['ownerEmail'].split('@')[0]}',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'PDF Document',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 14,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer area with date
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Date
+                  Text(
+                    DateFormat('dd MMM, yyyy').format(note['uploadDate']),
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 12,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+
+                  // Download/Offline button
+                  IconButton(
+                    icon: Icon(Icons.download_outlined, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(),
+                    onPressed: () => _makeNoteAvailableOffline(note),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
