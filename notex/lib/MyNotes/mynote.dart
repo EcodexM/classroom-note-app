@@ -1116,11 +1116,11 @@ class _MyNotesPageState extends State<MyNotesPage>
             backgroundColor: Color(0xFFFFB74D),
             child: Icon(Icons.menu_book, color: Colors.white),
           ),
-          SizedBox(width: 14),
+          SizedBox(width: 12),
           Text(
             'NOTEX',
             style: TextStyle(
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w600,
               fontFamily: 'porterssans',
               color: Colors.black87,
@@ -1345,61 +1345,78 @@ class _MyNotesPageState extends State<MyNotesPage>
   }
 
   Widget _buildColorPaletteAndAddButton() {
-    final double maxHeight = MediaQuery.of(context).size.height * 0.6;
-
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Color palette (visible only when activated)
+        AnimatedOpacity(
+          opacity: _isColorPaletteVisible ? 1.0 : 0.0,
+          duration: Duration(milliseconds: 200),
+          child: AnimatedContainer(
             duration: Duration(milliseconds: 300),
-            width: 50,
-            constraints: BoxConstraints(
-              maxHeight: _isColorPaletteVisible ? maxHeight : 0,
-            ),
-            child: SingleChildScrollView(
-              physics: NeverScrollableScrollPhysics(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children:
-                    _noteColors.map((color) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: GestureDetector(
-                          onTap: () => _selectColor(color),
-                          child: Container(
-                            width: 35,
-                            height: 35,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-              ),
-            ),
-          ),
-          SizedBox(height: 8),
-          FloatingActionButton(
-            shape: CircleBorder(),
-            onPressed: _toggleColorPalette,
-            backgroundColor: Colors.green,
-            child:
+            height:
                 _isColorPaletteVisible
-                    ? Icon(Icons.picture_as_pdf, color: Colors.white)
-                    : Icon(Icons.add, color: Colors.white),
+                    ? 400
+                    : 0, // Increased height for vertical stack
+            width: 50,
+            curve: Curves.easeOut,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(_noteColors.length, (index) {
+                return AnimatedContainer(
+                  duration: Duration(milliseconds: 100 + (index * 30)),
+                  transform: Matrix4.translationValues(
+                    0,
+                    _isColorPaletteVisible
+                        ? 0
+                        : 50.0 * (_noteColors.length - index),
+                    0,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: GestureDetector(
+                      onTap: () => _selectColor(_noteColors[index]),
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: _noteColors[index],
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
           ),
-        ],
-      ),
+        ),
+
+        SizedBox(height: 16),
+
+        // Add button with rotation animation
+        FloatingActionButton(
+          onPressed: _toggleColorPalette,
+          backgroundColor: Color(0xFF9575CD), // Purple color
+          elevation: 6,
+          child: AnimatedBuilder(
+            animation: _rotationAnimation,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: _rotationAnimation.value * 2 * 3.14159,
+                child: Icon(Icons.add, color: Colors.white, size: 30),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

@@ -30,21 +30,21 @@ class _CoursesPageState extends State<CoursesPage> {
 
   // List of educational image URLs
   final List<String> _educationalImages = [
-    'https://source.unsplash.com/random/800x600/?campus',
-    'https://source.unsplash.com/random/800x600/?library',
-    'https://source.unsplash.com/random/800x600/?university',
-    'https://source.unsplash.com/random/800x600/?study',
-    'https://source.unsplash.com/random/800x600/?education',
-    'https://source.unsplash.com/random/800x600/?learning',
-    'https://source.unsplash.com/random/800x600/?lecture',
-    'https://source.unsplash.com/random/800x600/?classroom',
-    'https://source.unsplash.com/random/800x600/?school',
-    'https://source.unsplash.com/random/800x600/?college',
-    'https://source.unsplash.com/random/800x600/?books',
-    'https://source.unsplash.com/random/800x600/?science',
-    'https://source.unsplash.com/random/800x600/?math',
-    'https://source.unsplash.com/random/800x600/?art',
-    'https://source.unsplash.com/random/800x600/?history',
+    'https://unsplash.com/photos/people-sitting-on-chair-in-front-of-computer-YRMWVcdyhmI',
+    'https://unsplash.com/photos/photo-of-brown-wooden-bookshelf-xrbbXIXAWY0',
+    'https://unsplash.com/photos/brown-concrete-palace-under-blue-sky-at-daytime-d6ebY-faOO0',
+    'https://unsplash.com/photos/web-designer-working-on-website-ux-app-development-VbVJy_IQrBE',
+    'https://unsplash.com/photos/education-concept-old-books-and-eye-glasses-on-blackboard-background-Sk9JF1KDz6M',
+    'https://unsplash.com/photos/a-group-of-people-in-a-room-with-a-projector-screen-1-aA2Fadydc',
+    'https://unsplash.com/photos/a-group-of-people-sitting-in-chairs-in-a-room-7hxOWrk-8RI',
+    'https://unsplash.com/photos/white-and-brown-wooden-conference-table-vfRkE_9wuPo',
+    'https://unsplash.com/photos/shallow-focus-photography-of-books-lUaaKCUANVI',
+    'https://unsplash.com/photos/w-T1VDxb6io',
+    'https://unsplash.com/photos/book-lot-on-table-9BoqXzEeQqM',
+    'https://unsplash.com/photos/lab-glassware-science-laboratory-research-and-development-concept-LdwPILe8Tlc',
+    'https://unsplash.com/photos/a-pair-of-scissors-a-ruler-and-a-ruler-on-a-table-Wq5hLAR8SOw',
+    'https://unsplash.com/photos/a-wooden-table-topped-with-a-palette-of-paint-vpflEzQ8-HM',
+    'https://unsplash.com/photos/colosseum-in-rome-italy-long-exposure-shot-the-rome-colosseum-was-built-in-the-time-of-ancient-rome-in-the-city-center-it-is-the-main-travel-destination-and-tourist-attraction-of-italy-FWFTOJTRih8',
   ];
 
   // Accent colors for courses
@@ -65,7 +65,7 @@ class _CoursesPageState extends State<CoursesPage> {
   void initState() {
     super.initState();
     _loadUserCourses();
-    _loadDebugInfo(); // Added for debugging
+    // Added for debugging
   }
 
   @override
@@ -74,58 +74,6 @@ class _CoursesPageState extends State<CoursesPage> {
     _courseCodeController.dispose();
     _professorController.dispose();
     super.dispose();
-  }
-
-  // Debug method to check direct firestore data
-  Future<void> _loadDebugInfo() async {
-    try {
-      final currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        _debugInfo += "No logged in user found\n";
-        return;
-      }
-
-      _debugInfo += "Current user: ${currentUser.email}\n";
-
-      // Check all courses
-      final coursesQuery =
-          await FirebaseFirestore.instance.collection('courses').get();
-
-      _debugInfo += "Total courses in database: ${coursesQuery.docs.length}\n";
-
-      // Check user enrollments
-      final enrollmentsQuery =
-          await FirebaseFirestore.instance
-              .collection('course_enrollments')
-              .where('studentEmail', isEqualTo: currentUser.email)
-              .get();
-
-      _debugInfo += "User enrollments: ${enrollmentsQuery.docs.length}\n";
-
-      for (var doc in enrollmentsQuery.docs) {
-        _debugInfo += "Enrolled in course ID: ${doc.data()['courseId']}\n";
-
-        // Check if this course exists
-        final courseDoc =
-            await FirebaseFirestore.instance
-                .collection('courses')
-                .doc(doc.data()['courseId'])
-                .get();
-
-        if (courseDoc.exists) {
-          _debugInfo +=
-              "Course exists: ${courseDoc.data()?['name'] ?? 'Unnamed'}\n";
-        } else {
-          _debugInfo +=
-              "Course does not exist for ID: ${doc.data()['courseId']}\n";
-        }
-      }
-
-      print(_debugInfo); // Print to console for debugging
-    } catch (e) {
-      _debugInfo += "Error in debug: $e\n";
-      print(_debugInfo);
-    }
   }
 
   // Load enrolled courses for the current user
@@ -153,9 +101,6 @@ class _CoursesPageState extends State<CoursesPage> {
               .collection('course_enrollments')
               .where('studentEmail', isEqualTo: currentUser.email)
               .get();
-
-      _debugInfo +=
-          "Found ${enrollmentsQuery.docs.length} enrollments directly\n";
 
       final enrolledCourseIds =
           enrollmentsQuery.docs
@@ -187,10 +132,6 @@ class _CoursesPageState extends State<CoursesPage> {
             'accentColor': accentColor,
             'imageUrl': _getRandomEducationalImage(),
           });
-
-          _debugInfo += "Added course: ${courseDoc.data()?['name']}\n";
-        } else {
-          _debugInfo += "Course document does not exist for ID: $courseId\n";
         }
       }
 
@@ -355,8 +296,6 @@ class _CoursesPageState extends State<CoursesPage> {
             'createdAt': FieldValue.serverTimestamp(),
           });
 
-      _debugInfo += "Created course with ID: ${courseRef.id}\n";
-
       // Manually check that the course was created
       final newCourseDoc =
           await FirebaseFirestore.instance
@@ -365,11 +304,7 @@ class _CoursesPageState extends State<CoursesPage> {
               .get();
 
       if (newCourseDoc.exists) {
-        _debugInfo +=
-            "Successfully created course: ${newCourseDoc.data()?['name']}\n";
-      } else {
-        _debugInfo += "Failed to find newly created course\n";
-      }
+      } else {}
 
       // Enroll the user in the new course
       final enrollmentRef = await FirebaseFirestore.instance
@@ -380,8 +315,6 @@ class _CoursesPageState extends State<CoursesPage> {
             'enrollmentDate': FieldValue.serverTimestamp(),
           });
 
-      _debugInfo += "Created enrollment with ID: ${enrollmentRef.id}\n";
-
       // Manually check that the enrollment was created
       final newEnrollmentDoc =
           await FirebaseFirestore.instance
@@ -390,11 +323,7 @@ class _CoursesPageState extends State<CoursesPage> {
               .get();
 
       if (newEnrollmentDoc.exists) {
-        _debugInfo +=
-            "Successfully created enrollment for courseId: ${newEnrollmentDoc.data()?['courseId']}\n";
-      } else {
-        _debugInfo += "Failed to find newly created enrollment\n";
-      }
+      } else {}
 
       // Wait a bit before refreshing to ensure Firestore has propagated changes
       await Future.delayed(Duration(seconds: 1));
@@ -423,17 +352,6 @@ class _CoursesPageState extends State<CoursesPage> {
         ),
       );
     }
-  }
-
-  // Force refresh method - can be called from a button
-  Future<void> _forceRefresh() async {
-    await _loadUserCourses();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Courses refreshed'),
-        backgroundColor: Colors.blue,
-      ),
-    );
   }
 
   @override
@@ -498,18 +416,6 @@ class _CoursesPageState extends State<CoursesPage> {
                     ),
                   ),
 
-                  // Debug button - comment out or remove in production
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton(
-                      onPressed: _forceRefresh,
-                      child: Text('Force Refresh'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                      ),
-                    ),
-                  ),
-
                   // Main content
                   Expanded(
                     child:
@@ -539,21 +445,20 @@ class _CoursesPageState extends State<CoursesPage> {
                 ],
               ),
             ),
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
             floatingActionButton:
                 _filteredCourses.isNotEmpty
-                    ? FloatingActionButton(
-                      onPressed: () {
-                        setState(() {
-                          _showAddCourseDialog = true;
-                        });
-                      },
-                      backgroundColor: Color.fromARGB(
-                        255,
-                        83,
-                        183,
-                        58,
-                      ), // Deep Purple
-                      child: Icon(Icons.add, color: Colors.white),
+                    ? Padding(
+                      padding: const EdgeInsets.only(bottom: 32.0, right: 24.0),
+                      child: FloatingActionButton(
+                        onPressed: () {
+                          setState(() {
+                            _showAddCourseDialog = true;
+                          });
+                        },
+                        backgroundColor: Color.fromARGB(255, 83, 183, 58),
+                        child: Icon(Icons.add, color: Colors.white),
+                      ),
                     )
                     : null,
           ),
@@ -587,7 +492,7 @@ class _CoursesPageState extends State<CoursesPage> {
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
-                              fontFamily: 'porterssans',
+                              fontFamily: 'Poppins',
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -870,18 +775,34 @@ class _CoursesPageState extends State<CoursesPage> {
 
   Widget _buildCoursesList() {
     return Padding(
-      padding: EdgeInsets.all(16),
-      child: GridView.builder(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 0.85,
-        ),
-        itemCount: _filteredCourses.length,
-        itemBuilder: (context, index) {
-          final course = _filteredCourses[index];
-          return _buildCourseCard(course);
+      padding: const EdgeInsets.only(left: 16, right: 12, top: 16, bottom: 60),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Responsive column count
+          int crossAxisCount = 6; // default
+          double width = constraints.maxWidth;
+
+          if (width < 500) {
+            crossAxisCount = 3; // Mobile (portrait)
+          } else if (width < 900) {
+            crossAxisCount = 4; // Tablets or medium screen
+          }
+
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: _filteredCourses.length,
+            itemBuilder: (context, index) {
+              final course = _filteredCourses[index];
+              return _buildCourseCard(course);
+            },
+          );
         },
       ),
     );
@@ -930,23 +851,10 @@ class _CoursesPageState extends State<CoursesPage> {
               child: Container(
                 height: 150,
                 child: Image.network(
-                  course['imageUrl'],
+                  course['imageUrl'] ?? _getRandomEducationalImage(),
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 150,
-                      color: Colors.grey[200],
-                      child: Center(
-                        child: Text(
-                          'Random Image',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontFamily: 'Poppins',
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    );
+                    return Container(height: 150, color: Colors.grey[200]);
                   },
                 ),
               ),
