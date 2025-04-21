@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard - NoteX</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="dashboard-header">
+    <h1>Dashboard</h1>
+    <nav>
+      <button onclick="showTab('profile')" class="nav-btn">Profile</button>
+      <button onclick="showTab('myCourses')" class="nav-btn">My Courses</button>
+      <button onclick="showTab('allCourses')" class="nav-btn">All Courses</button>
+      <button onclick="logout()" class="btn logout-btn">Log Out</button>
+    </nav>
+  </header>
+  <hr />
+  <main>
+    <h2>Welcome, <span id="user-name"></span></h2>
+
+    <div id="profile" class="tab">
+      <h4>Private Notes</h4>
+      <textarea id="private-notes" placeholder="Write your private notes here..." class="textarea"></textarea>
+      <button onclick="savePrivateNotes()" class="btn">Save Notes</button>
+      <h4>Uploaded Files</h4>
+      <input type="file" id="note-upload-private" class="file-input" />
+      <button onclick="uploadFile()" class="btn">Upload File</button>
+      <ul id="uploaded-files-list" class="file-list"></ul>
+      <p id="user-email" style="display:none;">Email: <span></span></p>
+    </div>
+
+    <div id="myCourses" class="tab" style="display:none;">
+      <h4>My Courses</h4>
+      <ul id="my-courses-list" class="course-list"></ul>
+    </div>
+
+    <div id="allCourses" class="tab" style="display:none;">
+      <h4>All Courses</h4>
+      <ul id="all-courses-list" class="course-list"></ul>
+    </div>
+
+    <div id="courseDetails" style="display:none;">
+      <h4 id="selected-course-name"></h4>
+      <input type="file" id="note-upload" class="file-input" />
+      <button onclick="uploadFile()" class="btn">Upload Note</button>
+      <ul id="course-files-list" class="file-list">
+        <!-- Example file item -->
+        <li>
+          <span onclick="reviewFile('fileId')" style="cursor: pointer; text-decoration: underline;">File Name</span>
+          <span>Average Rating: <span id="file-rating-fileId">0</span></span>
+        </li>
+      </ul>
+    </div>
+  </main>
+  <script type="module" src="app.js"></script>
+  <script>
+    function rateFile(fileId, rating) {
+      window.submitRating(fileId, rating);
+    }
+
+    function reviewFile(fileId) {
+      const rating = prompt("Rate this file (1-5 stars):");
+      if (rating >= 1 && rating <= 5) {
+        window.submitRating(fileId, rating);
+      } else {
+        alert("Please enter a valid rating between 1 and 5.");
+      }
+    }
+  </script>
+</body>
+</html>

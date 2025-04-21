@@ -1,0 +1,164 @@
+/* General Styles */
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+.container {
+  text-align: center;
+  padding: 50px;
+  background-color: #1e1e1e;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.brand {
+  color: #bb86fc;
+  font-weight: bold;
+}
+
+.button-group {
+  margin-top: 20px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 5px;
+  background-color: #bb86fc;
+  color: #121212;
+  text-decoration: none;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn:hover {
+  background-color: #9a67ea;
+}
+
+/* Dashboard Styles */
+.dashboard-header {
+  background-color: #1e1e1e;
+  color: #bb86fc;
+  padding: 10px;
+  text-align: center;
+  border-radius: 10px;
+}
+
+.nav-btn {
+  background-color: #bb86fc;
+  color: #121212;
+  border: none;
+  padding: 10px 15px;
+  margin: 5px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.nav-btn:hover {
+  background-color: #9a67ea;
+}
+
+.tab {
+  margin: 20px;
+  padding: 20px;
+  background-color: #1e1e1e;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.textarea {
+  width: 100%;
+  height: 100px;
+  padding: 10px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+.course-list, .file-list {
+  list-style: none;
+  padding: 0;
+}
+
+/* Adjust course list styles */
+.course-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #333;
+}
+
+.course-list li .course-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.course-list li .course-info .tagline {
+  font-size: 0.9em;
+  color: #bbb;
+  margin-top: 5px;
+}
+
+.course-list li, .file-list li {
+  padding: 10px;
+  border-bottom: 1px solid #333;
+}
+
+.file-input {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 10px;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #333;
+}
+
+/* Circular Button Styles */
+.circle-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #bb86fc;
+  color: #121212;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.circle-btn:hover {
+  background-color: #9a67ea;
+}
+
+.small-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+}
+
+/* Rating Dropdown Styles */
+.file-list select {
+  margin-left: 10px;
+  padding: 5px;
+  border-radius: 5px;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #333;
+}
+
+.file-list select option {
+  background-color: #121212;
+  color: #e0e0e0;
+}
